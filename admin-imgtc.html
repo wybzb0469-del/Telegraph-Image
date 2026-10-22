@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131c">
   <title>ImgTC | Admin</title>
-  <!-- Import CSS -->
+  <!-- Import CSS：Element UI 在前，暗色主题覆盖在后 -->
+  <link rel="stylesheet" href="./assets/vendor/element-ui/index.css">
+  <link rel="stylesheet" href="./assets/vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="./admin-imgtc.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
-  <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div id="app">
@@ -93,8 +93,8 @@
           </div>
         </div>
       </el-header>
-      <el-main class="main-container">
-        <div class="content">
+      <el-main class="main-container" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="handleDrop">
+        <div class="content" :class="{ 'drag-over': dragging }">
           <template v-for="(item, index) in paginatedTableData" :key="index">
             <!-- 图片 -->
             <template v-if="fileType === 'image'">
@@ -107,7 +107,15 @@
                 <div class="image-overlay">
                   <div class="overlay-buttons">
                     <el-button size="mini" type="info" @click.stop="handleEditName(item)">编辑</el-button>
-                    <el-button size="mini" type="primary" @click.stop="handleCopy(index, item.name)">复制</el-button>
+                    <el-dropdown trigger="click" @command="(cmd) => handleCopyFormat(cmd, item.name)">
+                      <el-button size="mini" type="primary">复制</el-button>
+                      <el-dropdown-menu slot="dropdown">
+                        <el-dropdown-item command="url"><i class="fas fa-link"></i> 链接 URL</el-dropdown-item>
+                        <el-dropdown-item command="markdown"><i class="fab fa-markdown"></i> Markdown</el-dropdown-item>
+                        <el-dropdown-item command="html"><i class="fas fa-code"></i> HTML</el-dropdown-item>
+                        <el-dropdown-item command="bbcode"><i class="fas fa-tag"></i> BBCode</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </el-dropdown>
                     <el-button size="mini" type="danger" @click.stop="handleDelete(index, item.name)">删除</el-button>
                   </div>
               </div>
@@ -151,7 +159,15 @@
                     <button class="control-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
                     <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
                     <button class="control-btn select-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
-                    <button class="control-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-link"></i></button>
+                    <el-dropdown trigger="click" @command="(cmd) => handleCopyFormat(cmd, item.name)">
+                      <button class="control-btn"><i class="fas fa-link"></i></button>
+                      <el-dropdown-menu slot="dropdown">
+                        <el-dropdown-item command="url"><i class="fas fa-link"></i> 链接 URL</el-dropdown-item>
+                        <el-dropdown-item command="markdown"><i class="fab fa-markdown"></i> Markdown</el-dropdown-item>
+                        <el-dropdown-item command="html"><i class="fas fa-code"></i> HTML</el-dropdown-item>
+                        <el-dropdown-item command="bbcode"><i class="fas fa-tag"></i> BBCode</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </el-dropdown>
                     <button class="control-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
                   </div>
                 </div>
@@ -195,7 +211,15 @@
                     <button class="control-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
                     <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
                     <button class="control-btn select-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
-                    <button class="control-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-copy"></i></button>
+                    <el-dropdown trigger="click" @command="(cmd) => handleCopyFormat(cmd, item.name)">
+                      <button class="control-btn"><i class="fas fa-copy"></i></button>
+                      <el-dropdown-menu slot="dropdown">
+                        <el-dropdown-item command="url"><i class="fas fa-link"></i> 链接 URL</el-dropdown-item>
+                        <el-dropdown-item command="markdown"><i class="fab fa-markdown"></i> Markdown</el-dropdown-item>
+                        <el-dropdown-item command="html"><i class="fas fa-code"></i> HTML</el-dropdown-item>
+                        <el-dropdown-item command="bbcode"><i class="fas fa-tag"></i> BBCode</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </el-dropdown>
                     <button class="control-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
                   </div>
                 </div>
@@ -232,7 +256,15 @@
                     <button class="control-btn like-btn" @click.stop="toggleLike(index, item.name)"><i :class="item.metadata.liked ? 'fas fa-heart liked' : 'far fa-heart'"></i></button>
                     <button class="control-btn edit-btn" @click.stop="handleEditName(item)"><i class="fas fa-edit"></i></button>
                     <button class="control-btn select-btn" @click.stop="toggleSelect(index, item.name)"><i :class="item.selected ? 'fas fa-square-check selected' : 'far fa-square'"></i></button>
-                    <button class="control-btn" @click.stop="handleCopy(index, item.name)"><i class="fas fa-copy"></i></button>
+                    <el-dropdown trigger="click" @command="(cmd) => handleCopyFormat(cmd, item.name)">
+                      <button class="control-btn"><i class="fas fa-copy"></i></button>
+                      <el-dropdown-menu slot="dropdown">
+                        <el-dropdown-item command="url"><i class="fas fa-link"></i> 链接 URL</el-dropdown-item>
+                        <el-dropdown-item command="markdown"><i class="fab fa-markdown"></i> Markdown</el-dropdown-item>
+                        <el-dropdown-item command="html"><i class="fas fa-code"></i> HTML</el-dropdown-item>
+                        <el-dropdown-item command="bbcode"><i class="fas fa-tag"></i> BBCode</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </el-dropdown>
                     <button class="control-btn" @click.stop="handleDelete(index, item.name)"><i class="fas fa-trash-alt"></i></button>
                   </div>
                 </div>
@@ -250,17 +282,14 @@
     <el-button v-if="nextCursor" @click="loadMore">加载更多</el-button>
   </div>
   <el-footer class="footer">
-          <div>Powered By</div>
-          <a href="https://github.com/cf-pages/Telegraph-Image" target="_blank" rel="noopener noreferrer">
-            <div><i class="fa-brands fa-github"></i> Telegraph-Image</div>
-          </a>
+          <div>图床管理后台</div>
         </el-footer>
       </el-main>
     </el-container>
   </div>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script> <!-- Vue -->
-<script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script> <!-- ElementUI -->
+<script src="./assets/vendor/vue.min.js"></script> <!-- Vue -->
+<script src="./assets/vendor/element-ui/index.js"></script> <!-- ElementUI -->
 <script>
   new Vue({
     el: '#app',
@@ -303,16 +332,13 @@
       currentPage: 1,
       pageSize: 15,
       selectedFiles: [],
+      dragging: false,
       sortOption: 'dateDesc',
       filterOption: 'all',
       fileType: 'image',
       quickWebsites: [
         { name: '原版后台', url: './admin.html', icon: 'fas fa-suitcase' },
         { name: '瀑布流', url: './admin-waterfall.html', icon: 'fas fa-wind' },
-        { name: 'Movavi', url: 'https://www.movavi.com/zh/movavi-video-converter.html', icon: 'fas fa-file-video' },
-        { name: 'FreeConvert', url: 'https://www.freeconvert.com/zh/video-compressor', icon: 'fas fa-file' },
-        { name: 'YouCompress', url: 'https://www.youcompress.com/zh-cn/', icon: 'fas fa-file-zipper' },
-        { name: 'Cloudinary', url: 'https://console.cloudinary.com/', icon: 'fas fa-cloud' },
       ],
     },
     computed: {
@@ -613,6 +639,35 @@
           .then(() => this.$message.success('复制文件链接成功~'))
           .catch(() => this.$message.error('自动复制失败，请手动复制链接：' + link));
       },
+      getLink(name) {
+        return `${this.baseURL}/file/${name}`;
+      },
+      isImage(name) {
+        const ext = (name.split('.').pop() || '').toLowerCase();
+        return this.fileConfig.image.exts.includes(ext);
+      },
+      handleCopyFormat(command, name) {
+        const link = this.getLink(name);
+        const displayName = name;
+        let text = link;
+        if (command === 'markdown') {
+          text = this.isImage(name) ? `![${displayName}](${link})` : `[${displayName}](${link})`;
+        } else if (command === 'html') {
+          text = this.isImage(name) ? `<img src="${link}" alt="${displayName}" />` : `<a href="${link}">${displayName}</a>`;
+        } else if (command === 'bbcode') {
+          text = this.isImage(name) ? `[img]${link}[/img]` : `[url=${link}]${displayName}[/url]`;
+        }
+        const copyTask = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.resolve(this.copyToClipboardFallback(text));
+        copyTask
+          .then(() => this.$message.success('复制成功~'))
+          .catch(() => this.$message.error('复制失败，请手动复制'));
+      },
+      handleDrop(event) {
+        this.dragging = false;
+        const files = Array.from(event.dataTransfer.files || []);
+        if (!files.length) return;
+        this.uploadFiles({ target: { files: files, value: '' } });
+      },
       // 批处理相关
       selectAllInPage() {  // 全选当前页
         const selected = !this.paginatedTableData.every(file => file.selected);
@@ -777,7 +832,7 @@
           message: `
             <div>
               每行一个网站，格式：名称|网址|图标类名<br>
-              图标需在 <a href="https://fontawesome.com/v6/search?m=free" target="_blank" style="color: #409EFF; text-decoration: underline">Font Awesome</a> 中选择
+              图标需使用 Font Awesome 免费图标类名（如 fas fa-link）
             </div>
           `,
           inputValidator: (value) => {

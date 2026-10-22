@@ -1,149 +1,235 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Waterfall</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d14">
+<title>图库 · 瀑布流</title>
 <style>
+  :root{
+    --bg-0:#0b0d14;--bg-1:#10131c;--bg-2:#171b26;--bg-3:#1f2433;
+    --glass:rgba(18,21,30,.72);
+    --border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);
+    --text-1:#e7eaf3;--text-2:#9aa4b8;--text-3:#6b7385;
+    --accent:#8b5cf6;--accent-2:#22d3ee;--accent-soft:rgba(139,92,246,.16);
+    --danger:#f87171;--success:#34d399;
+    --radius:14px;--shadow:0 16px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
   body{
-    background: linear-gradient(90deg, #ffd7e4 0%, #c8f1ff 100%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text-1);background:
+      radial-gradient(1200px 600px at 15% -10%,rgba(139,92,246,.14),transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%,rgba(34,211,238,.10),transparent 55%),
+      var(--bg-0);
+    background-attachment:fixed;min-height:100vh;-webkit-font-smoothing:antialiased;
   }
-  ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
-}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2a3142;border-radius:10px;border:2px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4258;background-clip:content-box}
 
- ::-webkit-scrollbar-corner {
-	background-color: transparent;
-}
-
- ::-webkit-scrollbar-thumb {
-	background-color: #49b1f5;
-	background-image: -webkit-linear-gradient(45deg, hsla(0, 0%, 100%, .4) 25%, transparent 0, transparent 50%, hsla(0, 0%, 100%, .4) 0, hsla(0, 0%, 100%, .4) 75%, transparent 0, transparent);
-	border-radius: 2em;
-}
-
- ::-webkit-scrollbar-track {
-	background-color: rgba(73, 177, 245, .2);
-	border-radius: 2em;
-}
-  .box {
-      position: relative;
+  header{
+    position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;
+    padding:12px 24px;background:var(--glass);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);
+    border-bottom:1px solid var(--border);
   }
-  img {
-      width: 200px;
-      height: auto;
-      padding: 5px;
-	  margin-left: 1.25%;
-      border-radius: 20px;
+  header .title{font-size:1.2em;font-weight:700;display:flex;align-items:center;gap:10px;}
+  header .title .dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));}
+  header .spacer{flex:1;}
+  header a.btn{
+    text-decoration:none;color:var(--text-1);border:1px solid var(--border-strong);
+    padding:7px 16px;border-radius:999px;font-size:.88em;font-weight:600;transition:all .2s ease;
   }
-  #bigimg {
-	display: none;
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background-color: rgba(0, 0, 0, 0.5);
-}
-#bigimg img {
-	position: absolute;
-	width: 90%;
-	height: 100%;
-	top: 50%;
-	left: 50%;
-	object-fit: contain;
-	transform: translate(-50%, -50%);
-}
+  header a.btn:hover{background:var(--accent-soft);border-color:rgba(139,92,246,.4);color:#c4b5fd;}
+
+  main{max-width:1400px;margin:0 auto;padding:24px 20px 60px;}
+  .masonry{column-count:1;column-gap:16px;}
+  @media (min-width:560px){ .masonry{column-count:2;} }
+  @media (min-width:860px){ .masonry{column-count:3;} }
+  @media (min-width:1200px){ .masonry{column-count:4;} }
+  @media (min-width:1600px){ .masonry{column-count:5;} }
+
+  .item{
+    position:relative;break-inside:avoid;margin-bottom:16px;
+    border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);
+    background:var(--bg-2);box-shadow:0 6px 18px rgba(0,0,0,.3);
+    transition:transform .25s ease,border-color .25s ease;cursor:pointer;
+  }
+  .item:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.4);}
+  .item img{display:block;width:100%;height:auto;min-height:60px;}
+  .item figcaption{
+    display:flex;align-items:center;gap:8px;padding:10px 12px;
+    font-size:.82em;
+  }
+  .item figcaption .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2);}
+  .item figcaption .acts{display:flex;gap:5px;}
+  .item .act{
+    border:1px solid var(--border);background:var(--bg-3);color:var(--text-2);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;
+    transition:all .18s ease;padding:0;
+  }
+  .item .act:hover{background:var(--accent-soft);border-color:rgba(139,92,246,.4);color:#c4b5fd;}
+  .item .act.del:hover{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4);color:var(--danger);}
+  .item .act svg{width:15px;height:15px;}
+
+  .load-wrap{text-align:center;margin:26px 0;}
+  #loadMore{
+    background:var(--accent);color:#fff;border:none;padding:11px 34px;border-radius:999px;
+    font-size:.95em;font-weight:600;cursor:pointer;transition:all .2s ease;
+  }
+  #loadMore:hover{background:#7c3aed;transform:translateY(-1px);}
+  #loadMore:disabled{background:var(--bg-3);color:var(--text-3);cursor:default;}
+  .empty{text-align:center;color:var(--text-3);padding:60px 0;border:1px dashed var(--border);border-radius:14px;}
+
+  #lightbox{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.93);padding:24px;cursor:zoom-out;}
+  #lightbox.show{display:flex;}
+  #lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:var(--shadow);}
+  #lightbox .close{position:absolute;top:20px;right:26px;font-size:2em;color:#fff;background:none;border:none;cursor:pointer;line-height:1;}
+
+  #toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(20px);background:var(--bg-2);border:1px solid var(--border-strong);color:var(--text-1);padding:12px 22px;border-radius:12px;box-shadow:var(--shadow);font-size:.92em;opacity:0;pointer-events:none;transition:all .3s ease;z-index:200;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.error{border-color:rgba(248,113,113,.4);color:var(--danger);}
+  #toast.success{border-color:rgba(52,211,153,.4);color:var(--success);}
 </style>
 </head>
 <body>
-  <div class="box"></div>
-  <button id="loadMore" style="display:block;margin:16px auto;" onclick="loadMore()">加载更多</button>
-  <!-- 放大遮罩层 -->
-    <div id="bigimg" onclick="closeBigImg();"></div>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+  <header>
+    <div class="title"><span class="dot"></span>图库 · 瀑布流</div>
+    <div class="spacer"></div>
+    <a class="btn" href="./admin-imgtc.html">网格视图</a>
+    <a class="btn" href="./admin.html">表格视图</a>
+    <a class="btn" href="/" id="logout-btn">退出</a>
+  </header>
+
+  <main>
+    <div class="masonry" id="masonry"></div>
+    <div class="load-wrap"><button id="loadMore">加载更多</button></div>
+  </main>
+
+  <div id="lightbox"><button class="close" id="lb-close">&times;</button><img id="lb-img" alt=""></div>
+  <div id="toast"></div>
+
 <script>
+(function(){
+  "use strict";
+  var IMG_EXTS = ['jpg','jpeg','png','gif','webp','bmp','svg','ico','tiff','avif'];
   var cursor = null;
-  function loadMore(){
-    $.ajax({
-      url: cursor
-        ? "./api/manage/list?cursor=" + encodeURIComponent(cursor)
-        : "./api/manage/list?limit=100",
-      dataType: "json",
-      success: function(data){
-        cursor = data.list_complete ? null : data.cursor;
-        var images = data.keys || [];
-        var targetElement = document.querySelector('.box');
-        let str = '';
-        for (let i = 0; i < images.length; i++){
-          if(images[i].name.indexOf('.mp4')>0) continue;
-          str += '<img onclick="showBigImg(this)" data-original="/file/'+images[i].name+'" src="/file/'+images[i].name+'">';
-        }
-        targetElement.insertAdjacentHTML('beforeend', str);
-        if(!cursor){ document.getElementById('loadMore').style.display='none'; }
-      },
-      error: function(){ alert("同步失败，请检查网络"); }
-    });
+  var masonry = document.getElementById('masonry');
+  var loadMoreBtn = document.getElementById('loadMore');
+  var lightbox = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lb-img');
+  var toast = document.getElementById('toast');
+
+  function extOf(name){ return (name.split('.').pop() || '').toLowerCase(); }
+  function isImage(name){ return IMG_EXTS.indexOf(extOf(name)) >= 0; }
+  function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  var toastTimer = null;
+  function showToast(msg, type){
+    toast.textContent = msg; toast.className = 'show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toast.className = ''; }, 2200);
   }
-  loadMore();
+
+  function copyText(text){
+    var done = function(){ showToast('已复制', 'success'); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fb(); });
+    } else fb();
+    function fb(){
+      var ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta); showToast('已复制', 'success');
+    }
+  }
+
+  function buildLink(name, fmt){
+    var link = location.origin + '/file/' + name;
+    if(fmt === 'markdown') return '![' + name + '](' + link + ')';
+    if(fmt === 'html') return '<img src="' + link + '" alt="' + name + '">';
+    if(fmt === 'bbcode') return '[img]' + link + '[/img]';
+    return link;
+  }
+
+  function render(images){
+    var html = '';
+    images.forEach(function(f){
+      if(!isImage(f.name)) return;
+      html += '<figure class="item" data-name="' + esc(f.name) + '">'
+            +   '<img loading="lazy" src="/file/' + esc(f.name) + '" data-full="/file/' + esc(f.name) + '" alt="">'
+            +   '<figcaption>'
+            +     '<span class="name" title="' + esc(f.name) + '">' + esc(f.name) + '</span>'
+            +     '<span class="acts">'
+            +       '<button class="act" data-act="url" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
+            +       '<button class="act" data-act="markdown" title="复制 Markdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>'
+            +       '<button class="act del" data-act="del" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/></svg></button>'
+            +     '</span>'
+            +   '</figcaption>'
+            + '</figure>';
+    });
+    masonry.insertAdjacentHTML('beforeend', html);
+    if(masonry.children.length === 0){
+      masonry.innerHTML = '<div class="empty">暂无图片记录</div>';
+    }
+  }
+
+  function loadMore(){
+    loadMoreBtn.disabled = true;
+    var url = cursor ? './api/manage/list?cursor=' + encodeURIComponent(cursor) : './api/manage/list?limit=100';
+    fetch(url, { method:'GET', credentials:'include' })
+      .then(function(r){
+        if(r.status === 401){ window.location.href = './api/manage/login'; throw new Error('unauthorized'); }
+        return r.json();
+      })
+      .then(function(data){
+        cursor = data.list_complete ? null : data.cursor;
+        var files = (data.keys || []);
+        render(files);
+        if(!cursor){ loadMoreBtn.style.display = 'none'; }
+        else { loadMoreBtn.disabled = false; }
+      })
+      .catch(function(){ loadMoreBtn.disabled = false; showToast('加载失败，请检查网络', 'error'); });
+  }
+
+  /* 事件委托 */
+  masonry.addEventListener('click', function(e){
+    var actBtn = e.target.closest('[data-act]');
+    if(actBtn){
+      var item = actBtn.closest('.item');
+      var name = item.getAttribute('data-name');
+      var act = actBtn.getAttribute('data-act');
+      if(act === 'del'){
+        if(!confirm('确认删除 ' + name + ' 吗？')) return;
+        fetch('./api/manage/delete/' + name, { method:'GET', credentials:'include' })
+          .then(function(r){ if(r.ok){ item.remove(); showToast('已删除'); } else showToast('删除失败', 'error'); })
+          .catch(function(){ showToast('删除失败', 'error'); });
+      } else {
+        copyText(buildLink(name, act));
+      }
+      return;
+    }
+    var img = e.target.closest('img[data-full]');
+    if(img){ lbImg.src = img.getAttribute('data-full'); lightbox.classList.add('show'); }
+  });
+
+  function closeLightbox(){ lightbox.classList.remove('show'); lbImg.src = ''; }
+  lightbox.addEventListener('click', closeLightbox);
+  document.getElementById('lb-close').addEventListener('click', function(e){ e.stopPropagation(); closeLightbox(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeLightbox(); });
+
+  document.getElementById('logout-btn').addEventListener('click', function(e){ e.preventDefault(); window.location.href = './api/manage/logout'; });
+  loadMoreBtn.addEventListener('click', loadMore);
+
+  /* 登录检查后加载 */
+  fetch('./api/manage/check', { method:'GET', credentials:'include' })
+    .then(function(r){ return r.text(); })
+    .then(function(t){
+      if(t === 'true' || t === 'Not using basic auth.'){ loadMore(); }
+      else { window.location.href = './api/manage/login'; }
+    })
+    .catch(function(){ showToast('无法连接服务器', 'error'); });
+})();
 </script>
 </body>
-<script>
-  window.onload = $(function () {
-      // 获取图片的宽度(200px)
-      let imgWidth = $('img').outerWidth(); // 200
-      //console.log(imgWidth)
-      waterfallHandler();
-
-      // 瀑布流处理
-      function waterfallHandler() {
-          // 获取图片的列数
-          let column = parseInt($(window).width() / imgWidth);
-          //console.log(column)
-          // 高度数组
-          let heightArr = [];
-          for(let i=0; i<column; i++) {
-              heightArr[i] = 0;
-          }
-          $.each($('img'), function (index, item) {
-              // 当前元素的高度
-              let itemHeight = $(item).outerHeight();
-              // 高度数组最小的高度
-              let minHeight = Math.min(...heightArr);
-              // 高度数组最小的高度的索引
-              let minIndex = heightArr.indexOf(minHeight);
-              $(item).css({
-                  position: 'absolute',
-                  top: minHeight + 'px',
-                  left: minIndex * imgWidth + 'px'
-              });
-
-              heightArr[minIndex] += itemHeight;
-          });
-      }
-
-      // 窗口大小改变
-      $(window).resize(function () {
-          waterfallHandler();
-      });
-  });
-  function showBigImg(img) {
-	var bigImg = document.getElementById('bigimg');
-	var imgUrl = img.getAttribute('data-original');
-	bigImg.innerHTML = '<img src="' + imgUrl + '">';
-	bigImg.style.display = 'block';
-	// 获取屏幕的宽度和高度
-	//var screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-	//var screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-	//bigImg.style.maxWidth = screenWidth * 0.9 + 'px';
-	//bigImg.style.maxHeight = screenHeight * 0.9 + 'px';
-}
-
-function closeBigImg() {
-	var bigImg = document.getElementById('bigimg');
-	bigImg.style.display = 'none';
-	bigImg.innerHTML = '';
-}
-</script>
 </html>
