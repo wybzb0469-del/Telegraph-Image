@@ -27,7 +27,6 @@
     background-attachment:fixed;
     min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;
   }
-  /* 动态壁纸层（默认隐藏，开关开启后显示单张固定） */
   #bg-wallpaper{position:fixed;inset:0;z-index:-2;display:none;background-size:cover;background-position:center;}
   #bg-veil{position:fixed;inset:0;z-index:-1;display:none;
     background:linear-gradient(180deg,rgba(11,13,20,.84) 0%,rgba(11,13,20,.7) 45%,rgba(11,13,20,.9) 100%);}
@@ -43,7 +42,6 @@
     background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 4px 14px var(--accent-soft)}
   .brand .logo svg{width:18px;height:18px}
   .spacer{flex:1}
-  /* 动态壁纸开关 */
   .bg-switch{display:flex;align-items:center;gap:8px;font-size:.85em;color:var(--text-2);cursor:pointer;user-select:none}
   .switch{position:relative;width:40px;height:22px;display:inline-block}
   .switch input{opacity:0;width:0;height:0}
@@ -79,6 +77,8 @@
   /* 上传任务列表 */
   #tasks{display:none;margin-top:16px}
   #tasks.show{display:block}
+  .tasks-summary{font-size:.82em;color:var(--text-2);padding:2px 2px 12px}
+  .tasks-summary b{color:var(--text-1);font-weight:700}
   .task{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:10px;background:var(--bg-2);
     border:1px solid var(--border);border-radius:12px;animation:fadeUp .3s ease both}
   .task .t-icon{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
@@ -96,10 +96,6 @@
   .task .t-msg{font-size:.78em;color:var(--text-3);margin-top:6px;display:none}
   .task.error .t-msg{display:block;color:var(--danger)}
   .task.success .t-msg{display:block;color:var(--success)}
-  /* 任务汇总行 */
-  .tasks-summary{font-size:.82em;color:var(--text-2);padding:2px 2px 12px;display:none}
-  .tasks-summary.show{display:block}
-  .tasks-summary b{color:var(--text-1);font-weight:700}
   .task .t-actions{display:flex;gap:8px;flex-shrink:0}
   .task button{border:1px solid var(--border);background:var(--bg-3);color:var(--text-1);padding:7px 14px;
     border-radius:8px;cursor:pointer;font-size:.82em;font-weight:600;transition:all .18s ease}
@@ -117,29 +113,57 @@
     padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.86em;transition:all .2s ease;white-space:nowrap}
   .history-head .clear:hover{color:var(--accent);border-color:rgba(139,92,246,.4)}
   .history-head #clear-btn:hover{color:var(--danger);border-color:rgba(248,113,113,.4)}
-  .history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
+  .history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
   .item{background:var(--bg-2);border:1px solid var(--border);border-radius:14px;overflow:hidden;
     box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .25s ease,border-color .25s ease;animation:fadeUp .35s ease both}
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   .item:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.4)}
   .item .thumb{position:relative;aspect-ratio:16/10;background:var(--bg-3);display:grid;place-items:center;cursor:pointer;overflow:hidden}
-  .item .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .item .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s ease}
+  .item:hover .thumb img{transform:scale(1.04)}
   .item .thumb .ph{font-size:2.4em;opacity:.75}
+  .item .thumb .view-hint{position:absolute;left:0;right:0;bottom:0;padding:18px 12px 8px;text-align:center;font-size:.76em;
+    color:#fff;background:linear-gradient(180deg,transparent,rgba(11,13,20,.85));opacity:0;transition:opacity .25s ease;pointer-events:none}
+  .item:hover .thumb .view-hint{opacity:1}
+  .item .del{position:absolute;top:8px;right:8px;z-index:2;width:28px;height:28px;border-radius:8px;
+    border:1px solid var(--border);background:rgba(11,13,20,.65);color:var(--text-2);display:grid;place-items:center;
+    cursor:pointer;opacity:0;transition:opacity .2s ease;font-size:1em;line-height:1;padding:0}
+  .item:hover .del{opacity:1}
+  .item .del:hover{background:rgba(248,113,113,.2);color:var(--danger);border-color:rgba(248,113,113,.4)}
   .item .meta{padding:12px 14px}
   .item .meta .fname{font-size:.88em;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
-  .item .meta .finfo{font-size:.74em;color:var(--text-3);margin-bottom:10px;font-variant-numeric:tabular-nums}
-  .item .ops{display:flex;gap:6px;flex-wrap:wrap}
-  .item .ops button{flex:1;min-width:44px;border:1px solid var(--border);background:var(--bg-3);color:var(--text-2);
-    padding:6px 4px;border-radius:7px;cursor:pointer;font-size:.76em;font-weight:600;transition:all .18s ease}
-  .item .ops button:hover{background:var(--accent-soft);border-color:rgba(139,92,246,.4);color:#c4b5fd}
-  .item .ops button.del:hover{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4);color:var(--danger)}
+  .item .meta .finfo{font-size:.74em;color:var(--text-3);font-variant-numeric:tabular-nums}
   .empty{text-align:center;color:var(--text-3);padding:50px 0;font-size:.95em;border:1px dashed var(--border);border-radius:14px}
 
-  #lightbox{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
-    background:rgba(0,0,0,.92);padding:24px;cursor:zoom-out}
+  /* ===== 灯箱：预览 + 代码面板 ===== */
+  #lightbox{position:fixed;inset:0;z-index:100;display:none;background:rgba(0,0,0,.93)}
   #lightbox.show{display:flex}
-  #lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:var(--shadow)}
-  #lightbox .lb-close{position:absolute;top:22px;right:26px;font-size:2em;color:#fff;background:none;border:none;cursor:pointer;line-height:1}
+  .lb-main{display:flex;width:100%;height:100%;max-width:1240px;margin:0 auto;padding:56px 72px 40px;gap:24px;align-items:center}
+  .lb-stage{flex:1;min-width:0;height:100%;display:flex;align-items:center;justify-content:center}
+  .lb-stage img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:var(--shadow);object-fit:contain}
+  .lb-stage .lb-ph{font-size:5em;opacity:.4}
+  .lb-panel{width:340px;flex-shrink:0;background:var(--bg-2);border:1px solid var(--border-strong);
+    border-radius:16px;padding:20px;max-height:100%;overflow-y:auto;box-shadow:var(--shadow)}
+  .lb-file{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+  .lb-file .lb-name{font-weight:700;font-size:.95em;word-break:break-all;line-height:1.4}
+  .lb-file .lb-meta{font-size:.78em;color:var(--text-3);margin-top:5px}
+  .lb-code-row{margin-bottom:15px}
+  .lb-code-row label{display:block;font-size:.78em;color:var(--text-2);margin-bottom:6px;font-weight:600}
+  .lb-code{display:flex;gap:8px}
+  .lb-code input{flex:1;min-width:0;background:var(--bg-3);border:1px solid var(--border-strong);color:var(--text-1);
+    border-radius:8px;padding:8px 10px;font-size:.8em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .lb-code input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+  .lb-code button{flex-shrink:0;background:var(--accent);border:none;color:#fff;border-radius:8px;padding:0 13px;
+    cursor:pointer;font-size:.82em;font-weight:600;transition:all .18s ease;white-space:nowrap}
+  .lb-code button:hover{background:#7c3aed}
+  .lb-close{position:absolute;top:16px;right:22px;font-size:2em;color:#fff;background:none;border:none;cursor:pointer;line-height:1;z-index:3;opacity:.8}
+  .lb-close:hover{opacity:1}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;
+    background:rgba(255,255,255,.08);border:1px solid var(--border-strong);color:#fff;font-size:1.6em;cursor:pointer;
+    display:grid;place-items:center;z-index:3;transition:background .2s ease;line-height:1}
+  .lb-nav:hover{background:rgba(255,255,255,.18)}
+  .lb-prev{left:18px}
+  .lb-next{right:18px}
 
   #toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(20px);background:var(--bg-2);
     border:1px solid var(--border-strong);color:var(--text-1);padding:12px 22px;border-radius:12px;box-shadow:var(--shadow);
@@ -148,13 +172,20 @@
   #toast.success{border-color:rgba(52,211,153,.4);color:var(--success)}
   #toast.error{border-color:rgba(248,113,113,.4);color:var(--danger)}
 
-  @media (max-width:640px){
+  @media (max-width:768px){
     header{padding:12px 16px}
     .bg-switch span.txt{display:none}
     main{padding:26px 14px 44px}
     #dropzone{padding:38px 14px}
     .history-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-    .item .ops{flex-wrap:wrap}
+    .item .del{opacity:1}
+    .item .thumb .view-hint{opacity:1;font-size:.68em}
+    .lb-main{flex-direction:column;padding:52px 16px 20px;gap:14px}
+    .lb-stage{height:40%;min-height:180px}
+    .lb-panel{width:100%;flex:1;padding:16px}
+    .lb-nav{width:38px;height:38px;font-size:1.3em}
+    .lb-prev{left:6px}
+    .lb-next{right:6px}
   }
 </style>
 </head>
@@ -214,7 +245,35 @@
     </div>
   </main>
 
-  <div id="lightbox"><button class="lb-close" id="lb-close">&times;</button><img id="lb-img" alt=""></div>
+  <div id="lightbox">
+    <button class="lb-close" id="lb-close">&times;</button>
+    <button class="lb-nav lb-prev" id="lb-prev">&#8249;</button>
+    <button class="lb-nav lb-next" id="lb-next">&#8250;</button>
+    <div class="lb-main">
+      <div class="lb-stage">
+        <img id="lb-img" alt="">
+        <div class="lb-ph" id="lb-ph" style="display:none"></div>
+      </div>
+      <div class="lb-panel">
+        <div class="lb-file">
+          <div class="lb-name" id="lb-name"></div>
+          <div class="lb-meta" id="lb-meta"></div>
+        </div>
+        <div class="lb-code-row">
+          <label>直链 URL</label>
+          <div class="lb-code"><input id="lb-url" readonly><button class="lb-copy" data-input="lb-url">复制</button></div>
+        </div>
+        <div class="lb-code-row">
+          <label>Markdown</label>
+          <div class="lb-code"><input id="lb-md" readonly><button class="lb-copy" data-input="lb-md">复制</button></div>
+        </div>
+        <div class="lb-code-row">
+          <label>HTML</label>
+          <div class="lb-code"><input id="lb-html" readonly><button class="lb-copy" data-input="lb-html">复制</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="toast"></div>
 
 <script>
@@ -240,6 +299,14 @@
   var toast = document.getElementById('toast');
   var lightbox = document.getElementById('lightbox');
   var lbImg = document.getElementById('lb-img');
+  var lbPh = document.getElementById('lb-ph');
+  var lbName = document.getElementById('lb-name');
+  var lbMeta = document.getElementById('lb-meta');
+  var lbUrl = document.getElementById('lb-url');
+  var lbMd = document.getElementById('lb-md');
+  var lbHtml = document.getElementById('lb-html');
+  var lbPrev = document.getElementById('lb-prev');
+  var lbNext = document.getElementById('lb-next');
 
   /* ===== 状态 ===== */
   var history = [];
@@ -247,6 +314,7 @@
   var tasks = [];
   var taskSeq = 0;
   var uploadingCount = 0;
+  var lightboxIndex = -1;
 
   function saveHistory(){ history = history.slice(0, MAX_HISTORY); try{ localStorage.setItem('upload_history', JSON.stringify(history)); }catch(e){} }
   function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -266,7 +334,7 @@
     return new Date(ts).toLocaleDateString('zh-CN');
   }
 
-  /* ===== 复制格式（直链 / Markdown / HTML） ===== */
+  /* ===== 复制（直链 / Markdown / HTML） ===== */
   function buildLink(src, name, fmt){
     var link = location.origin + src;
     var isImg = fileKind(name) === 'image';
@@ -287,6 +355,7 @@
   function renderHistory(){
     historyTitle.textContent = '最近上传（' + history.length + '）';
     clearBtn.style.display = history.length ? '' : 'none';
+    copyAllBtn.style.display = history.length ? '' : 'none';
     if(!history.length){ historyGrid.innerHTML = '<div class="empty" style="grid-column:1/-1">还没有上传记录，传一张试试吧</div>'; return; }
     var html = '';
     history.forEach(function(item, i){
@@ -295,17 +364,15 @@
       var infoArr = [];
       if(item.size) infoArr.push(formatSize(item.size));
       if(item.time) infoArr.push(timeAgo(item.time));
-      html += '<div class="item" data-i="'+i+'">'
-            +   '<div class="thumb" data-view="'+esc(item.src)+'" data-kind="'+kind+'">'+thumb+'</div>'
+      html += '<div class="item">'
+            +   '<div class="thumb" data-index="'+i+'" title="点击预览并复制代码">'
+            +     thumb
+            +     '<div class="view-hint">点击预览 · 复制代码</div>'
+            +     '<button class="del" data-del="'+i+'" title="删除记录">&times;</button>'
+            +   '</div>'
             +   '<div class="meta">'
             +     '<div class="fname" title="'+esc(item.name)+'">'+esc(item.name)+'</div>'
             +     '<div class="finfo">'+ esc(infoArr.join(' · ')) +'</div>'
-            +     '<div class="ops">'
-            +       '<button data-copy="url" title="复制直链">直链</button>'
-            +       '<button data-copy="markdown" title="复制 Markdown">Markdown</button>'
-            +       '<button data-copy="html" title="复制 HTML">HTML</button>'
-            +       '<button class="del" data-del="'+i+'" title="删除记录">删</button>'
-            +     '</div>'
             +   '</div>'
             + '</div>';
     });
@@ -324,7 +391,7 @@
     if(uploading) parts.push('上传中 <b>'+uploading+'</b>');
     if(success) parts.push('成功 <b>'+success+'</b>');
     if(error) parts.push('失败 <b>'+error+'</b>');
-    var html = '<div class="tasks-summary show">' + parts.join(' · ') + '</div>';
+    var html = '<div class="tasks-summary">' + parts.join(' · ') + '</div>';
     tasks.forEach(function(t){
       var icon = t.status==='error' ? '✕' : (t.status==='success' ? '✓' : '⬆');
       var msg = t.status==='error' ? ('失败：' + esc(t.error)) : (t.status==='success' ? '完成' : '');
@@ -386,7 +453,6 @@
         if(!src) throw new Error('未返回文件路径');
         task.status = 'success'; task.src = src;
         renderTasks();
-        // 移入历史
         history.unshift({ name: task.name, src: src, time: Date.now(), size: task.file.size });
         saveHistory(); renderHistory();
       })
@@ -396,9 +462,7 @@
       })
       .finally(function(){
         uploadingCount--; task.active = false;
-        // 成功/失败后延迟清掉已完成任务（保留失败供重试，成功后短暂停留后自动移除）
-        if(task.status === 'success'){ setTimeout(function(){ removeTask(task.id); }, 1200); }
-        else if(task.status === 'error'){ /* 保留，等用户重试或移除 */ }
+        if(task.status === 'success'){ setTimeout(function(){ removeTask(task.id); }, 1000); }
         pump();
       });
   }
@@ -424,6 +488,42 @@
     pump();
   }
 
+  /* ===== 灯箱 ===== */
+  function openLightbox(index){
+    lightboxIndex = index;
+    updateLightbox();
+    lightbox.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox(){
+    lightbox.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  function updateLightbox(){
+    var rec = history[lightboxIndex];
+    if(!rec) return;
+    var kind = fileKind(rec.name);
+    if(kind === 'image'){
+      lbImg.style.display = 'block';
+      lbPh.style.display = 'none';
+      lbImg.src = rec.src;
+    } else {
+      lbImg.style.display = 'none';
+      lbPh.style.display = 'block';
+      lbPh.textContent = PH_ICON[kind] || '📄';
+    }
+    lbName.textContent = rec.name;
+    var metaArr = [];
+    if(rec.size) metaArr.push(formatSize(rec.size));
+    if(rec.time) metaArr.push(timeAgo(rec.time));
+    lbMeta.textContent = metaArr.join(' · ') + '（第 ' + (lightboxIndex+1) + ' / ' + history.length + ' 个）';
+    lbUrl.value = location.origin + rec.src;
+    lbMd.value = buildLink(rec.src, rec.name, 'markdown');
+    lbHtml.value = buildLink(rec.src, rec.name, 'html');
+    lbPrev.style.visibility = lightboxIndex > 0 ? 'visible' : 'hidden';
+    lbNext.style.visibility = lightboxIndex < history.length - 1 ? 'visible' : 'hidden';
+  }
+
   /* ===== 交互 ===== */
   dropzone.addEventListener('click', function(){ fileInput.click(); });
   fileInput.addEventListener('change', function(e){ addFiles(e.target.files); e.target.value=''; });
@@ -447,23 +547,10 @@
   });
 
   historyGrid.addEventListener('click', function(e){
-    var copyBtn = e.target.closest('[data-copy]');
-    if(copyBtn){
-      var item=e.target.closest('.item'); var rec=history[+item.getAttribute('data-i')];
-      if(rec){
-        copyText(buildLink(rec.src, rec.name, copyBtn.getAttribute('data-copy')), '已复制');
-        var original = copyBtn.textContent;
-        copyBtn.textContent = '✓';
-        copyBtn.style.color = 'var(--success)';
-        copyBtn.style.borderColor = 'rgba(52,211,153,.45)';
-        setTimeout(function(){ copyBtn.textContent = original; copyBtn.style.color = ''; copyBtn.style.borderColor = ''; }, 1000);
-      }
-      return;
-    }
     var delBtn = e.target.closest('[data-del]');
     if(delBtn){ history.splice(+delBtn.getAttribute('data-del'),1); saveHistory(); renderHistory(); showToast('已删除记录'); return; }
-    var viewEl = e.target.closest('[data-view]');
-    if(viewEl && viewEl.getAttribute('data-kind')==='image'){ lbImg.src = viewEl.getAttribute('data-view'); lightbox.classList.add('show'); }
+    var thumbEl = e.target.closest('[data-index]');
+    if(thumbEl){ openLightbox(+thumbEl.getAttribute('data-index')); }
   });
 
   clearBtn.addEventListener('click', function(){ history=[]; saveHistory(); renderHistory(); showToast('已清空记录'); });
@@ -473,22 +560,32 @@
     copyText(links, '已复制 ' + history.length + ' 条直链');
   });
 
-  function closeLightbox(){ lightbox.classList.remove('show'); lbImg.src=''; }
-  lightbox.addEventListener('click', closeLightbox);
+  /* 灯箱事件 */
   document.getElementById('lb-close').addEventListener('click', function(e){ e.stopPropagation(); closeLightbox(); });
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLightbox(); });
+  lbPrev.addEventListener('click', function(e){ e.stopPropagation(); if(lightboxIndex > 0){ lightboxIndex--; updateLightbox(); } });
+  lbNext.addEventListener('click', function(e){ e.stopPropagation(); if(lightboxIndex < history.length-1){ lightboxIndex++; updateLightbox(); } });
+  lightbox.addEventListener('click', function(e){
+    if(e.target === lightbox || e.target.classList.contains('lb-stage')){ closeLightbox(); return; }
+    var copyBtn = e.target.closest('.lb-copy');
+    if(copyBtn){
+      var input = document.getElementById(copyBtn.getAttribute('data-input'));
+      if(input){ copyText(input.value, '已复制'); var o=copyBtn.textContent; copyBtn.textContent='✓'; setTimeout(function(){ copyBtn.textContent=o; },1000); }
+    }
+  });
+  ['lb-url','lb-md','lb-html'].forEach(function(id){ document.getElementById(id).addEventListener('focus', function(){ this.select(); }); });
+  document.addEventListener('keydown', function(e){
+    if(!lightbox.classList.contains('show')) return;
+    if(e.key === 'Escape'){ closeLightbox(); }
+    else if(e.key === 'ArrowLeft' && lightboxIndex > 0){ lightboxIndex--; updateLightbox(); }
+    else if(e.key === 'ArrowRight' && lightboxIndex < history.length-1){ lightboxIndex++; updateLightbox(); }
+  });
 
-  /* ===== 动态壁纸（默认关，开启后固定显示今日壁纸，不轮播） ===== */
+  /* ===== 动态壁纸（默认关，开启显示单张今日壁纸） ===== */
   var bgWallpaper = document.getElementById('bg-wallpaper');
   var bgVeil = document.getElementById('bg-veil');
   var bgToggle = document.getElementById('bg-toggle');
   var dynamicBg = localStorage.getItem('dynamic_bg') === '1';
   bgToggle.checked = dynamicBg;
-
-  function applyDynamicBg(){
-    if(dynamicBg){ loadWallpaper(); }
-    else { clearWallpaper(); }
-  }
   function clearWallpaper(){ bgWallpaper.style.display='none'; bgVeil.style.display='none'; }
   function loadWallpaper(){
     fetch('/api/bing/wallpaper')
@@ -502,6 +599,7 @@
       })
       .catch(clearWallpaper);
   }
+  function applyDynamicBg(){ dynamicBg ? loadWallpaper() : clearWallpaper(); }
   bgToggle.addEventListener('change', function(){ dynamicBg = bgToggle.checked; localStorage.setItem('dynamic_bg', dynamicBg?'1':'0'); applyDynamicBg(); });
 
   /* ===== 启动 ===== */
