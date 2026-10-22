@@ -20,7 +20,7 @@
           <el-tooltip content="批量上传" placement="bottom">
             <span class="stats" @click="handleUpload"><i class="fas fa-upload upload-icon"></i><span class="stats-text">记录数: </span>{{ Number }}</span>
           </el-tooltip>
-          <input type="file" ref="fileInput" style="display: none;" multiple @change="uploadFiles">
+          <input type="file" ref="fileInput" style="display: none;" accept="image/*" multiple @change="uploadFiles">
           <div class="actions">
             <el-tooltip content="文件类型" placement="bottom">
               <el-dropdown @command="switchFileType" :hide-on-click="false">
@@ -496,14 +496,16 @@
         // telegram-bot可分发的最大文件大小（20MB）
         // 大于20MB虽然能够成功上传，但无法获取文件链接
         const config = this.uploadConfig;
-        // 过滤有效文件
+        // 过滤有效文件：仅图片 + 大小限制
         const valid = [], invalid = [];
         files.forEach(file => {
-          (file.size <= config.maxSize ? valid : invalid).push(file);
+          if (!file.type.startsWith('image/')) invalid.push({ name: file.name, reason: '非图片文件' });
+          else if (file.size > config.maxSize) invalid.push({ name: file.name, reason: `超过${config.maxSize/1024/1024}MB` });
+          else valid.push(file);
         });
         // 显示错误信息
-        if(invalid.length) { this.$message.error(`文件超过${config.maxSize/1024/1024}MB: \n${invalid.map(f => f.name).join('\n')}`); }
-        if(!valid.length) { this.$message.info('没有符合条件的文件'); event.target.value = ''; return; }
+        if(invalid.length) { this.$message.error('以下文件被忽略：\n' + invalid.map(i => `${i.name}（${i.reason}）`).join('\n')); }
+        if(!valid.length) { this.$message.info('没有符合条件的图片'); event.target.value = ''; return; }
 
         try {
           await this.$confirm(`确定要上传这 ${valid.length} 个文件吗?`, '提示', {
