@@ -18,6 +18,14 @@ export async function onRequestPost(context) {
         const fileName = uploadFile.name;
         const fileExtension = fileName.split('.').pop().toLowerCase();
 
+        // 仅允许图片上传
+        if (!uploadFile.type.startsWith('image/')) {
+            return new Response(
+                JSON.stringify({ error: '仅支持图片文件上传' }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
         const telegramFormData = new FormData();
         telegramFormData.append("chat_id", env.TG_Chat_ID);
 

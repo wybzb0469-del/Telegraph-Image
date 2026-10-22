@@ -225,12 +225,12 @@
         </div>
         <div class="dz-title">点击选择，或拖拽文件到这里</div>
         <div class="dz-sub">
-          支持图片 / 视频 / 音频 / 任意文件，建议单文件 ≤ 20MB<br>
+          仅支持图片上传（JPG / PNG / GIF / WebP 等），建议单文件 ≤ 20MB<br>
           也可以直接 <kbd>Ctrl</kbd> + <kbd>V</kbd> 粘贴截图上传
         </div>
       </div>
       <div id="tasks"></div>
-      <input type="file" id="file-input" multiple hidden>
+      <input type="file" id="file-input" accept="image/*" multiple hidden>
     </div>
 
     <div class="history" id="history">
@@ -480,10 +480,22 @@
     for(var i = 0; i < Math.min(idle, pending.length); i++){ startUpload(pending[i]); }
   }
 
+  function isImageFile(file){
+    if(file.type && file.type.indexOf('image/') === 0) return true;
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    return IMG_EXTS.indexOf(ext) >= 0;
+  }
   function addFiles(fileList){
     var files = Array.from(fileList);
     if(!files.length) return;
-    files.forEach(function(f){ tasks.push({ id: ++taskSeq, file: f, name: f.name, status: 'uploading', active: false, progress: 0, error: '', src: '' }); });
+    var accepted = [], rejected = [];
+    files.forEach(function(f){ (isImageFile(f) ? accepted : rejected).push(f); });
+    if(rejected.length){
+      var names = rejected.slice(0,3).map(function(f){ return f.name; }).join('、');
+      showToast('仅支持图片，已忽略：' + names + (rejected.length > 3 ? ' 等 ' + rejected.length + ' 个' : ''), 'error');
+    }
+    if(!accepted.length) return;
+    accepted.forEach(function(f){ tasks.push({ id: ++taskSeq, file: f, name: f.name, status: 'uploading', active: false, progress: 0, error: '', src: '' }); });
     renderTasks();
     pump();
   }
@@ -535,7 +547,7 @@
   document.addEventListener('paste', function(e){
     var items = (e.clipboardData && e.clipboardData.items) || [];
     var files = [];
-    for(var i=0;i<items.length;i++){ if(items[i].kind==='file'){ var f=items[i].getAsFile(); if(f) files.push(f); } }
+    for(var i=0;i<items.length;i++){ if(items[i].kind==='file'){ var f=items[i].getAsFile(); if(f && f.type && f.type.indexOf('image/')===0) files.push(f); } }
     if(files.length){ e.preventDefault(); addFiles(files); }
   });
 
