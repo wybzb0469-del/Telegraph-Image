@@ -83,14 +83,23 @@
     border:1px solid var(--border);border-radius:12px;animation:fadeUp .3s ease both}
   .task .t-icon{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
     background:var(--bg-3);border:1px solid var(--border);font-size:1.1em}
+  .task.uploading .t-icon{color:var(--accent);border-color:rgba(139,92,246,.4)}
+  .task.success .t-icon{color:var(--success);border-color:rgba(52,211,153,.4)}
+  .task.error .t-icon{color:var(--danger);border-color:rgba(248,113,113,.4)}
   .task .t-body{flex:1;min-width:0}
   .task .t-name{font-size:.88em;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .task .t-bar{height:5px;border-radius:4px;background:var(--bg-3);margin-top:8px;overflow:hidden;display:none}
-  .task.uploading .t-bar{display:block}
-  .task .t-bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .25s ease}
+  .task .t-bar{display:none;align-items:center;gap:10px;margin-top:9px}
+  .task.uploading .t-bar{display:flex}
+  .task .t-track{flex:1;height:6px;border-radius:4px;background:var(--bg-3);overflow:hidden}
+  .task .t-track i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .15s linear}
+  .task .t-pct{font-size:.78em;color:var(--text-2);min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
   .task .t-msg{font-size:.78em;color:var(--text-3);margin-top:6px;display:none}
   .task.error .t-msg{display:block;color:var(--danger)}
   .task.success .t-msg{display:block;color:var(--success)}
+  /* 任务汇总行 */
+  .tasks-summary{font-size:.82em;color:var(--text-2);padding:2px 2px 12px;display:none}
+  .tasks-summary.show{display:block}
+  .tasks-summary b{color:var(--text-1);font-weight:700}
   .task .t-actions{display:flex;gap:8px;flex-shrink:0}
   .task button{border:1px solid var(--border);background:var(--bg-3);color:var(--text-1);padding:7px 14px;
     border-radius:8px;cursor:pointer;font-size:.82em;font-weight:600;transition:all .18s ease}
@@ -101,11 +110,13 @@
 
   /* 历史 */
   .history{margin-top:34px}
-  .history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .history-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
   .history-head h2{margin:0;font-size:1.15em;font-weight:700}
+  .head-actions{display:flex;gap:10px;align-items:center}
   .history-head .clear{background:transparent;border:1px solid var(--border);color:var(--text-2);
-    padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.86em;transition:all .2s ease}
-  .history-head .clear:hover{color:var(--danger);border-color:rgba(248,113,113,.4)}
+    padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.86em;transition:all .2s ease;white-space:nowrap}
+  .history-head .clear:hover{color:var(--accent);border-color:rgba(139,92,246,.4)}
+  .history-head #clear-btn:hover{color:var(--danger);border-color:rgba(248,113,113,.4)}
   .history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
   .item{background:var(--bg-2);border:1px solid var(--border);border-radius:14px;overflow:hidden;
     box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .25s ease,border-color .25s ease;animation:fadeUp .35s ease both}
@@ -115,7 +126,8 @@
   .item .thumb img{width:100%;height:100%;object-fit:cover;display:block}
   .item .thumb .ph{font-size:2.4em;opacity:.75}
   .item .meta{padding:12px 14px}
-  .item .meta .fname{font-size:.88em;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px}
+  .item .meta .fname{font-size:.88em;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+  .item .meta .finfo{font-size:.74em;color:var(--text-3);margin-bottom:10px;font-variant-numeric:tabular-nums}
   .item .ops{display:flex;gap:6px;flex-wrap:wrap}
   .item .ops button{flex:1;min-width:44px;border:1px solid var(--border);background:var(--bg-3);color:var(--text-2);
     padding:6px 4px;border-radius:7px;cursor:pointer;font-size:.76em;font-weight:600;transition:all .18s ease}
@@ -193,7 +205,10 @@
     <div class="history" id="history">
       <div class="history-head">
         <h2 id="history-title">最近上传</h2>
-        <button class="clear" id="clear-btn">清空记录</button>
+        <div class="head-actions">
+          <button class="clear" id="copy-all-btn">复制全部直链</button>
+          <button class="clear" id="clear-btn">清空记录</button>
+        </div>
       </div>
       <div class="history-grid" id="history-grid"></div>
     </div>
@@ -221,6 +236,7 @@
   var historyGrid = document.getElementById('history-grid');
   var historyTitle = document.getElementById('history-title');
   var clearBtn = document.getElementById('clear-btn');
+  var copyAllBtn = document.getElementById('copy-all-btn');
   var toast = document.getElementById('toast');
   var lightbox = document.getElementById('lightbox');
   var lbImg = document.getElementById('lb-img');
@@ -236,6 +252,19 @@
   function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function fileKind(name){ var ext=(name.split('.').pop()||'').toLowerCase(); if(IMG_EXTS.indexOf(ext)>=0) return 'image'; if(['mp4','webm','ogv','avi','mov','mkv','flv'].indexOf(ext)>=0) return 'video'; if(['mp3','wav','flac','aac','m4a','ogg','wma'].indexOf(ext)>=0) return 'audio'; return 'file'; }
   var PH_ICON = { video:'🎬', audio:'🎵', file:'📄' };
+  function formatSize(bytes){
+    if(!bytes || bytes <= 0) return '';
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+  function timeAgo(ts){
+    var diff = Date.now() - ts;
+    if(diff < 60000) return '刚刚';
+    if(diff < 3600000) return Math.floor(diff/60000) + ' 分钟前';
+    if(diff < 86400000) return Math.floor(diff/3600000) + ' 小时前';
+    return new Date(ts).toLocaleDateString('zh-CN');
+  }
 
   /* ===== 复制格式（直链 / Markdown / HTML） ===== */
   function buildLink(src, name, fmt){
@@ -263,10 +292,14 @@
     history.forEach(function(item, i){
       var kind = fileKind(item.name);
       var thumb = kind === 'image' ? '<img loading="lazy" src="' + esc(item.src) + '" alt="">' : '<span class="ph">' + (PH_ICON[kind]||'📄') + '</span>';
+      var infoArr = [];
+      if(item.size) infoArr.push(formatSize(item.size));
+      if(item.time) infoArr.push(timeAgo(item.time));
       html += '<div class="item" data-i="'+i+'">'
             +   '<div class="thumb" data-view="'+esc(item.src)+'" data-kind="'+kind+'">'+thumb+'</div>'
             +   '<div class="meta">'
             +     '<div class="fname" title="'+esc(item.name)+'">'+esc(item.name)+'</div>'
+            +     '<div class="finfo">'+ esc(infoArr.join(' · ')) +'</div>'
             +     '<div class="ops">'
             +       '<button data-copy="url" title="复制直链">直链</button>'
             +       '<button data-copy="markdown" title="复制 Markdown">Markdown</button>'
@@ -284,7 +317,14 @@
     var show = tasks.length > 0;
     tasksEl.classList.toggle('show', show);
     if(!show){ tasksEl.innerHTML=''; return; }
-    var html = '';
+    var uploading = tasks.filter(function(t){return t.status==='uploading';}).length;
+    var success = tasks.filter(function(t){return t.status==='success';}).length;
+    var error = tasks.filter(function(t){return t.status==='error';}).length;
+    var parts = [];
+    if(uploading) parts.push('上传中 <b>'+uploading+'</b>');
+    if(success) parts.push('成功 <b>'+success+'</b>');
+    if(error) parts.push('失败 <b>'+error+'</b>');
+    var html = '<div class="tasks-summary show">' + parts.join(' · ') + '</div>';
     tasks.forEach(function(t){
       var icon = t.status==='error' ? '✕' : (t.status==='success' ? '✓' : '⬆');
       var msg = t.status==='error' ? ('失败：' + esc(t.error)) : (t.status==='success' ? '完成' : '');
@@ -292,7 +332,7 @@
             +   '<div class="t-icon">'+icon+'</div>'
             +   '<div class="t-body">'
             +     '<div class="t-name">'+esc(t.name)+'</div>'
-            +     '<div class="t-bar"><i style="width:'+t.progress+'%"></i></div>'
+            +     '<div class="t-bar"><div class="t-track"><i style="width:'+t.progress+'%"></i></div><span class="t-pct">'+t.progress+'%</span></div>'
             +     '<div class="t-msg">'+msg+'</div>'
             +   '</div>'
             +   '<div class="t-actions">'
@@ -302,6 +342,15 @@
             + '</div>';
     });
     tasksEl.innerHTML = html;
+  }
+
+  function updateTaskProgress(id, pct){
+    var el = tasksEl.querySelector('.task[data-id="'+id+'"]');
+    if(!el) return;
+    var track = el.querySelector('.t-track i');
+    var pctEl = el.querySelector('.t-pct');
+    if(track) track.style.width = pct + '%';
+    if(pctEl) pctEl.textContent = pct + '%';
   }
 
   /* ===== 上传（XHR 真实进度） ===== */
@@ -330,7 +379,7 @@
     task.status = 'uploading'; task.active = true; task.error = ''; task.progress = 0;
     renderTasks();
     uploadingCount++;
-    uploadWithProgress(task.file, function(p){ task.progress = p; renderTasks(); })
+    uploadWithProgress(task.file, function(p){ task.progress = p; updateTaskProgress(task.id, p); })
       .then(function(data){
         if(data && data.error) throw new Error(data.error);
         var src = Array.isArray(data) ? (data[0] && data[0].src) : (data && data.src);
@@ -399,7 +448,18 @@
 
   historyGrid.addEventListener('click', function(e){
     var copyBtn = e.target.closest('[data-copy]');
-    if(copyBtn){ var item=e.target.closest('.item'); var rec=history[+item.getAttribute('data-i')]; if(rec) copyText(buildLink(rec.src, rec.name, copyBtn.getAttribute('data-copy'))); return; }
+    if(copyBtn){
+      var item=e.target.closest('.item'); var rec=history[+item.getAttribute('data-i')];
+      if(rec){
+        copyText(buildLink(rec.src, rec.name, copyBtn.getAttribute('data-copy')), '已复制');
+        var original = copyBtn.textContent;
+        copyBtn.textContent = '✓';
+        copyBtn.style.color = 'var(--success)';
+        copyBtn.style.borderColor = 'rgba(52,211,153,.45)';
+        setTimeout(function(){ copyBtn.textContent = original; copyBtn.style.color = ''; copyBtn.style.borderColor = ''; }, 1000);
+      }
+      return;
+    }
     var delBtn = e.target.closest('[data-del]');
     if(delBtn){ history.splice(+delBtn.getAttribute('data-del'),1); saveHistory(); renderHistory(); showToast('已删除记录'); return; }
     var viewEl = e.target.closest('[data-view]');
@@ -407,6 +467,11 @@
   });
 
   clearBtn.addEventListener('click', function(){ history=[]; saveHistory(); renderHistory(); showToast('已清空记录'); });
+  copyAllBtn.addEventListener('click', function(){
+    if(!history.length){ showToast('暂无记录可复制'); return; }
+    var links = history.map(function(item){ return location.origin + item.src; }).join('\n');
+    copyText(links, '已复制 ' + history.length + ' 条直链');
+  });
 
   function closeLightbox(){ lightbox.classList.remove('show'); lbImg.src=''; }
   lightbox.addEventListener('click', closeLightbox);
