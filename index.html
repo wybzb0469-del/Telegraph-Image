@@ -230,7 +230,7 @@
         </div>
       </div>
       <div id="tasks"></div>
-      <input type="file" id="file-input" accept="image/*" multiple hidden>
+      <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.avif,image/jpeg,image/png,image/gif,image/webp,image/bmp,image/avif" multiple hidden>
     </div>
 
     <div class="history" id="history">
@@ -282,7 +282,8 @@
   var SITE_NAME = "IMG床图";
   var MAX_HISTORY = 200;
   var CONCURRENCY = 3;
-  var IMG_EXTS = ['jpg','jpeg','png','gif','webp','bmp','svg','ico','tiff','avif'];
+  var IMG_EXTS = ['jpg','jpeg','png','gif','webp','bmp','avif'];
+  var MAX_UPLOAD_MB = 10;
 
   document.getElementById('site-name').textContent = SITE_NAME;
   document.getElementById('hero-title').textContent = SITE_NAME;
@@ -488,11 +489,19 @@
   function addFiles(fileList){
     var files = Array.from(fileList);
     if(!files.length) return;
-    var accepted = [], rejected = [];
-    files.forEach(function(f){ (isImageFile(f) ? accepted : rejected).push(f); });
+    var accepted = [], rejected = [], oversized = [];
+    files.forEach(function(f){
+      if(!isImageFile(f)){ rejected.push(f); return; }
+      if(f.size > MAX_UPLOAD_MB * 1024 * 1024){ oversized.push(f); return; }
+      accepted.push(f);
+    });
     if(rejected.length){
       var names = rejected.slice(0,3).map(function(f){ return f.name; }).join('、');
-      showToast('仅支持图片，已忽略：' + names + (rejected.length > 3 ? ' 等 ' + rejected.length + ' 个' : ''), 'error');
+      showToast('仅支持 JPG/PNG/GIF/WebP/BMP/AVIF，已忽略：' + names + (rejected.length > 3 ? ' 等 ' + rejected.length + ' 个' : ''), 'error');
+    }
+    if(oversized.length){
+      var bigNames = oversized.slice(0,3).map(function(f){ return f.name; }).join('、');
+      showToast('超过 ' + MAX_UPLOAD_MB + 'MB，已忽略：' + bigNames + (oversized.length > 3 ? ' 等 ' + oversized.length + ' 个' : ''), 'error');
     }
     if(!accepted.length) return;
     accepted.forEach(function(f){ tasks.push({ id: ++taskSeq, file: f, name: f.name, status: 'uploading', active: false, progress: 0, error: '', src: '' }); });

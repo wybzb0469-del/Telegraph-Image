@@ -1,0 +1,23 @@
+# Cloudflare Pages 响应头加固（作用于静态资源；Functions 响应的头在代码里设置）
+# 注意：不要在这里加全局 CSP，首页/后台依赖内联脚本，加了会白屏。
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+/admin.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/admin-imgtc.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/admin-waterfall.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/file/*
+  X-Robots-Tag: noindex, nofollow

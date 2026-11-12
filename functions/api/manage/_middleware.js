@@ -1,106 +1,129 @@
+import { constantTimeEquals } from '../../utils/security.js';
+import { enforceRateLimit, loginRateRules } from '../../utils/rate-limit.js';
+
+/**
+ * 后台 API 统一鉴权中间件。
+ *
+ * 相比旧版的改动：
+ *  1. 凭据比较改为定长哈希比较，避免计时侧信道；
+ *  2. Basic 认证失败按 IP 限流，挡暴力破解；
+ *  3. 异常只回通用信息，不再把堆栈吐给客户端；
+ *  4. 可选 ADMIN_REQUIRE_AUTH=true 强制执行鉴权（未配置账号时直接拒绝，而不是裸奔）。
+ */
+
 async function errorHandling(context) {
-    try {
-      return await context.next();
-    } catch (err) {
-      return new Response(`${err.message}\n${err.stack}`, { status: 500 });
-    }
+  try {
+    return await context.next();
+  } catch (err) {
+    console.error('manage api error:', err?.stack || err?.message || err);
+    return new Response('Internal Server Error', {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8', 'Cache-Control': 'no-store' },
+    });
+  }
+}
+
+function unauthorized(reason) {
+  return new Response(reason, {
+    status: 401,
+    statusText: 'Unauthorized',
+    headers: {
+      'Content-Type': 'text/plain;charset=UTF-8',
+      'Cache-Control': 'no-store',
+      'Content-Length': String(new TextEncoder().encode(reason).length),
+      'WWW-Authenticate': 'Basic realm="Telegraph-Image Admin", charset="UTF-8"',
+    },
+  });
+}
+
+function badRequest(reason) {
+  return new Response(reason, {
+    status: 400,
+    statusText: 'Bad Request',
+    headers: {
+      'Content-Type': 'text/plain;charset=UTF-8',
+      'Cache-Control': 'no-store',
+      'Content-Length': String(new TextEncoder().encode(reason).length),
+    },
+  });
+}
+
+function parseBasicAuth(request) {
+  const header = request.headers.get('Authorization');
+  if (!header) return null;
+
+  const [scheme, encoded] = header.split(' ');
+  if (!encoded || scheme !== 'Basic') throw new Error('malformed');
+
+  let decoded;
+  try {
+    const buffer = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+    decoded = new TextDecoder().decode(buffer).normalize();
+  } catch (error) {
+    throw new Error('malformed');
   }
 
-  function basicAuthentication(request) {
-    const Authorization = request.headers.get('Authorization');
-  
-    const [scheme, encoded] = Authorization.split(' ');
-  
-    // The Authorization header must start with Basic, followed by a space.
-    if (!encoded || scheme !== 'Basic') {
-      throw new BadRequestException('Malformed authorization header.');
-    }
-  
-    // Decodes the base64 value and performs unicode normalization.
-    // @see https://datatracker.ietf.org/doc/html/rfc7613#section-3.3.2 (and #section-4.2.2)
-    // @see https://dev.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
-    const buffer = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
-    const decoded = new TextDecoder().decode(buffer).normalize();
-  
-    // The username & password are split by the first colon.
-    //=> example: "username:password"
-    const index = decoded.indexOf(':');
-  
-    // The user & password are split by the first colon and MUST NOT contain control characters.
-    // @see https://tools.ietf.org/html/rfc5234#appendix-B.1 (=> "CTL = %x00-1F / %x7F")
-    if (index === -1 || /[\0-\x1F\x7F]/.test(decoded)) {
-      throw new BadRequestException('Invalid authorization value.');
-    }
-  
-    return {
-      user: decoded.substring(0, index),
-      pass: decoded.substring(index + 1),
-    };
-  }
-  
-  function UnauthorizedException(reason) {
-    return new Response(reason, {
-        status: 401,
-        statusText: 'Unauthorized',
-        headers: {
-          'Content-Type': 'text/plain;charset=UTF-8',
-          // Disables caching by default.
-          'Cache-Control': 'no-store',
-          // Returns the "Content-Length" header for HTTP HEAD requests.
-          'Content-Length': reason.length,
-        },
-      });
-  }
-  
-  function BadRequestException(reason) {
-    return new Response(reason, {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {
-          'Content-Type': 'text/plain;charset=UTF-8',
-          // Disables caching by default.
-          'Cache-Control': 'no-store',
-          // Returns the "Content-Length" header for HTTP HEAD requests.
-          'Content-Length': reason.length,
-        },
-      });
-  }
-  
-  
-  function authentication(context) {
-    //context.env.BASIC_USER="admin"
-    //context.env.BASIC_PASS="admin"
-    //check if the env variables Disable_Dashboard are set
-    if (typeof context.env.img_url == "undefined" || context.env.img_url == null || context.env.img_url == "") {
-        return new Response('Dashboard is disabled. Please bind a KV namespace to use this feature.', { status: 200 });
-    }
+  const index = decoded.indexOf(':');
+  if (index === -1 || /[\0-\x1F\x7F]/.test(decoded)) throw new Error('malformed');
 
-    console.log(context.env.BASIC_USER)
-    if(typeof context.env.BASIC_USER == "undefined" || context.env.BASIC_USER == null || context.env.BASIC_USER == ""){
-        return context.next();
-    }else{
-        if (context.request.headers.has('Authorization')) {
-            // Throws exception when authorization fails.
-            const { user, pass } = basicAuthentication(context.request);
-            
-                          
-                if (context.env.BASIC_USER !== user || context.env.BASIC_PASS !== pass) {
-                    return UnauthorizedException('Invalid credentials.');
-                }else{
-                    return context.next();
-                }
-            
-        } else {
-            return new Response('You need to login.', {
-                status: 401,
-                headers: {
-                // Prompts the user for credentials.
-                'WWW-Authenticate': 'Basic realm="my scope", charset="UTF-8"',
-                },
-            });
-        }
-    }  
-    
+  return {
+    user: decoded.substring(0, index),
+    pass: decoded.substring(index + 1),
+  };
+}
+
+async function authentication(context) {
+  const { env, request } = context;
+
+  // 未绑定 KV 时后台功能整体关闭
+  if (!env?.img_url) {
+    return new Response('Dashboard is disabled. Please bind a KV namespace to use this feature.', {
+      status: 200,
+    });
   }
-  
-  export const onRequest = [errorHandling, authentication];
+
+  const userConfigured = typeof env.BASIC_USER === 'string' && env.BASIC_USER.length > 0;
+  const passConfigured = typeof env.BASIC_PASS === 'string' && env.BASIC_PASS.length > 0;
+  const authEnabled = userConfigured && passConfigured;
+
+  // 收紧开关：强制鉴权，避免忘记配置账号导致后台裸奔
+  if (!authEnabled) {
+    if (env.ADMIN_REQUIRE_AUTH === 'true') {
+      return unauthorized('Admin credentials are not configured. Set BASIC_USER / BASIC_PASS.');
+    }
+    return context.next();
+  }
+
+  let credentials;
+  try {
+    credentials = parseBasicAuth(request);
+  } catch (error) {
+    return badRequest('Malformed authorization header.');
+  }
+
+  if (!credentials) {
+    return unauthorized('You need to login.');
+  }
+
+  const [userOk, passOk] = await Promise.all([
+    constantTimeEquals(credentials.user, env.BASIC_USER),
+    constantTimeEquals(credentials.pass, env.BASIC_PASS),
+  ]);
+
+  if (!userOk || !passOk) {
+    // 认证失败计数，超限直接 429（仅在 KV 或内存计数范围内）
+    const limited = await enforceRateLimit(context, {
+      scope: 'admin-login',
+      rules: loginRateRules(env),
+      kv: env?.RATE_LIMIT_KV || null,
+    });
+    if (limited) return limited;
+
+    console.warn('manage: auth failed from', request.headers.get('cf-connecting-ip') || 'unknown');
+    return unauthorized('Invalid credentials.');
+  }
+
+  return context.next();
+}
+
+export const onRequest = [errorHandling, authentication];

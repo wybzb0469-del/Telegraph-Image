@@ -4,8 +4,10 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: "0 0 * * *" # every day
+  # 已停用每日自动同步：本仓库包含与上游冲突的安全加固补丁
+  # （functions/upload.js、functions/file/[id].js、限流与鉴权中间件）。
+  # 自动 merge 上游改动会把补丁覆盖回不安全版本，请改为手动同步并逐个 review。
+  # 需要临时同步时，在 Actions 页面手动触发 workflow_dispatch。
   workflow_dispatch:
 
 jobs:

@@ -438,14 +438,19 @@
             data.sort((a, b) => b.metadata.TimeStamp - a.metadata.TimeStamp);
       },
       formattedFileDetails(item) {
-        const metadata = item.metadata;
+        const metadata = item.metadata || {};
         const timestamp = new Date(metadata.TimeStamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        // 这些字段来自上传者（fileName 完全可控），必须转义后再拼进 v-html，
+        // 否则一条 `<img src=x onerror=...>` 的文件名就能在后台执行任意脚本。
+        const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
         return `
           <div style="text-align: left; padding: 5px;">
-            <div><strong>ID：</strong>${item.name}</div>
-            <div><strong>文件名：</strong>${metadata.fileName || item.name}</div>
-            <div><strong>上传时间：</strong>${timestamp}</div>
-            <div><strong>元数据：</strong>${JSON.stringify(metadata)}</div>
+            <div><strong>ID：</strong>${esc(item.name)}</div>
+            <div><strong>文件名：</strong>${esc(metadata.fileName || item.name)}</div>
+            <div><strong>上传时间：</strong>${esc(timestamp)}</div>
+            <div><strong>元数据：</strong>${esc(JSON.stringify(metadata))}</div>
           </div>
         `;
       },
