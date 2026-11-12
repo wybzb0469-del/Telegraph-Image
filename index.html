@@ -433,7 +433,13 @@
           catch(e){ reject(new Error('响应解析失败')); }
         } else {
           var msg = 'HTTP ' + xhr.status;
-          try { var d = JSON.parse(xhr.responseText); if(d && d.error) msg = d.error; } catch(e){}
+          try {
+            var d = JSON.parse(xhr.responseText);
+            if(d && d.error) msg = d.error;
+          } catch(e) {
+            // 非 JSON 响应（例如网关 502）说明请求没走到业务逻辑，给个可操作的提示
+            if(xhr.status >= 500) msg = '服务暂时不可用（HTTP ' + xhr.status + '），请稍后重试';
+          }
           reject(new Error(msg));
         }
       };

@@ -30,6 +30,27 @@
   Cache-Control: no-store
   X-Robots-Tag: noindex, nofollow
 
+/admin-log.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+# Pages 可能把 /admin.html 308 跳到 /admin（clean URL），两种路径都要覆盖
+/admin
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/admin-imgtc
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/admin-waterfall
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/admin-log
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
 # 上传内容不参与搜索收录（仍可被外站引用）
 /file/*
   X-Robots-Tag: noindex, nofollow

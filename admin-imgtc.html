@@ -79,6 +79,12 @@
                 </el-dropdown-menu>
               </el-dropdown>
             </el-tooltip>
+            <el-tooltip :content="allSelectedInPage ? '取消全选（当前页）' : '全选当前页'" placement="bottom">
+              <span class="el-dropdown-link sel-all" @click="selectAllInPage">
+                <i :class="allSelectedInPage ? 'fas fa-square-check' : 'fas fa-check-double'"></i>
+                <span v-if="selectedFiles.length" class="sel-badge">{{ selectedFiles.length }}</span>
+              </span>
+            </el-tooltip>
             <el-tooltip content="工具箱" placement="bottom">
               <el-dropdown @command="handleToolkit" :hide-on-click="false">
                 <span class="el-dropdown-link"><i class="fas fa-toolbox"></i></span>
@@ -103,7 +109,7 @@
                 <i :class="item.metadata.liked ? 'fa-solid fa-bookmark liked' : 'fa-regular fa-bookmark not-liked'"></i>
                 </span>
                 <el-checkbox v-model="item.selected" :ref="'checkbox-' + index"></el-checkbox>
-                <el-image :src="'/file/' + item.name" :preview-src-list="['/file/' + item.name]" fit="cover" lazy="true"></el-image>
+                <el-image :src="'/thumb/' + item.name" :preview-src-list="['/file/' + item.name]" fit="cover" lazy></el-image>
                 <div class="image-overlay">
                   <div class="overlay-buttons">
                     <el-button size="mini" type="info" @click.stop="handleEditName(item)">编辑</el-button>
@@ -339,9 +345,15 @@
       quickWebsites: [
         { name: '原版后台', url: './admin.html', icon: 'fas fa-suitcase' },
         { name: '瀑布流', url: './admin-waterfall.html', icon: 'fas fa-wind' },
+        { name: '访问日志', url: './admin-log.html', icon: 'fas fa-clipboard-list' },
       ],
     },
     computed: {
+      // 当前页是否已经全选（顶部"全选"按钮的状态图标用）
+      allSelectedInPage() {
+        const list = this.paginatedTableData || [];
+        return list.length > 0 && list.every((file) => file.selected);
+      },
       filteredTableData() {
         return this.tableData.filter(data => {
           // 搜索匹配

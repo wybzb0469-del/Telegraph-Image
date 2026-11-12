@@ -1,11 +1,12 @@
-import {
-  asciiFileName,
-  isAllowedExt,
-  mimeForExt,
-  notFoundResponse,
-  parseFileKey,
-} from '../utils/security.js';
+import { isAllowedExt, notFoundResponse, parseFileKey } from '../utils/security.js';
 import { enforceRateLimit, fileRateRules } from '../utils/rate-limit.js';
+import { writeLogThrottled } from '../utils/audit-log.js';
+import {
+  TELEGRAM_FILE_ID_MIN_LENGTH,
+  buildImageHeaders,
+  getFilePath,
+  timeoutSignal,
+} from '../utils/telegram.js';
 
 /**
  * 文件读取/代理。
@@ -17,16 +18,6 @@ import { enforceRateLimit, fileRateRules } from '../utils/rate-limit.js';
  *  4. 强制 Content-Type = 白名单推导值 + nosniff + CSP sandbox，
  *     即使 Telegram 把文件当 text/html 返回，浏览器也不会执行。
  */
-
-const TELEGRAM_FILE_ID_MIN_LENGTH = 39;
-/** 回源超时：上游卡死时快速失败，避免占满并发 */
-const UPSTREAM_TIMEOUT_MS = 20000;
-
-function timeoutSignal(ms = UPSTREAM_TIMEOUT_MS) {
-  return typeof AbortSignal !== 'undefined' && AbortSignal.timeout
-    ? AbortSignal.timeout(ms)
-    : undefined;
-}
 
 export async function onRequest(context) {
   const { request, env, params } = context;
@@ -40,6 +31,19 @@ export async function onRequest(context) {
   // 关键拦截：非图片扩展名一律不服务
   if (ext && !isAllowedExt(ext)) {
     console.warn('file: blocked non-image request', key);
+    // 记一条日志便于事后取证；节流到 20 条/分钟，防止被刷爆 KV 写额度
+    void writeLogThrottled(
+      context,
+      {
+        action: 'file_blocked',
+        ok: false,
+        code: 'NON_IMAGE_PATH',
+        reason: '非图片扩展名',
+        status: 404,
+        fileKey: key,
+      },
+      { bucket: 'file_blocked', maxPerMinute: 20 }
+    );
     return notFoundResponse();
   }
 
@@ -132,7 +136,12 @@ export async function onRequest(context) {
     return notFoundResponse();
   }
 
-  const headers = buildResponseHeaders(ext, key, upstream, metadata);
+  const headers = buildImageHeaders({
+    ext,
+    key,
+    upstream,
+    displayName: metadata?.fileName || key,
+  });
 
   // 内容审查（仅 Telegraph 源可用，需要公网可访问 URL）
   if (metadata && metadata.ListType !== 'White' && !isTelegramHosted && env?.ModerateContentApiKey) {
@@ -180,54 +189,5 @@ async function safePut(kv, key, metadata) {
     await kv.put(key, '', { metadata });
   } catch (error) {
     console.error('file: kv put failed', error?.message || error);
-  }
-}
-
-function buildResponseHeaders(ext, key, upstream, metadata) {
-  const headers = new Headers();
-
-  const upstreamType = (upstream.headers.get('content-type') || '').toLowerCase();
-  let contentType = mimeForExt(ext);
-  if (!contentType) {
-    // 历史遗留的无扩展名文件：只接受上游明确声明的图片类型
-    contentType = upstreamType.startsWith('image/') ? upstreamType : 'application/octet-stream';
-  }
-
-  headers.set('Content-Type', contentType);
-  headers.set('X-Content-Type-Options', 'nosniff');
-  // 即便是图片，也禁止被当成脚本/插件上下文执行
-  headers.set('Content-Security-Policy', "default-src 'none'; sandbox");
-  headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  headers.set(
-    'Content-Disposition',
-    `inline; filename="${asciiFileName(metadata?.fileName || key)}"`
-  );
-  // 上传内容是不可变的，长缓存；同时避免被下游按 HTML 缓存
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-
-  for (const name of ['content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
-    const value = upstream.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-
-  return headers;
-}
-
-async function getFilePath(env, fileId) {
-  try {
-    const url = `https://api.telegram.org/bot${env.TG_Bot_Token}/getFile?file_id=${encodeURIComponent(fileId)}`;
-    const res = await fetch(url, {
-      method: 'GET',
-      signal: timeoutSignal(10000),
-      // file_path 基本稳定，缓存 1 小时即可省掉每次出图前的 getFile 子请求
-      cf: { cacheEverything: true, cacheTtl: 3600 },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data?.ok && data.result?.file_path) return data.result.file_path;
-    return null;
-  } catch (error) {
-    console.error('file: getFilePath failed', error?.message || error);
-    return null;
   }
 }

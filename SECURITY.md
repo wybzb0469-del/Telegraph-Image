@@ -71,6 +71,10 @@
 | `LOGIN_RATE_LIMIT` | `10` | 后台密码错误次数上限 |
 | `LOGIN_RATE_WINDOW` | `300` | 后台登录限流窗口（秒） |
 | `BING_RATE_LIMIT` | `30` | 壁纸接口每 IP 每分钟上限 |
+| `LOG_ENABLED` | `true` | 审计日志总开关 |
+| `LOG_KV` | 未绑定 | 日志专用 KV（强烈建议独立，避免占用 img_url 的写额度） |
+| `LOG_RETENTION_DAYS` | `30` | 日志保留天数（KV expirationTtl） |
+| `LOG_HASH_IP` | `false` | `true` 时日志里只存 IP 的 SHA-256 前 8 字节 |
 | `RATE_LIMIT_ENABLED` | `true` | 总开关，`false` 关闭全部代码层限流 |
 | `ADMIN_REQUIRE_AUTH` | `false` | `true` 时若未配置 `BASIC_USER/BASIC_PASS`，后台直接拒绝（不再裸奔） |
 
@@ -184,3 +188,50 @@ npm run test:security       # 只跑安全与后台接口相关
 3. **给后台加 Cloudflare Access**：比 Basic 认证更可靠（支持邮箱验证码/SSO），并天然免疫 CSRF。
 4. **KV 用量监控**：`scan` 与后台列表都会消耗 KV 读；量大时建议接 Workers Analytics。
 
+---
+
+## 八、审计日志与自检（2026-11-13 第三轮）
+
+### 日志
+
+每次上传（成功/被拒）与每次非图片路径访问都会写一条日志，字段包括：
+
+| 字段 | 含义 |
+|---|---|
+| `ts` / `durationMs` | 时间戳、请求耗时 |
+| `ip` | `CF-Connecting-IP`（可用 `LOG_HASH_IP=true` 只存哈希） |
+| `country` / `city` / `colo` / `asn` | Cloudflare 提供的地理与网络位置 |
+| `ua` / `referer` / `origin` | 浏览器与来源环境 |
+| `action` | `upload` / `upload_rejected` / `file_blocked` |
+| `code` / `reason` / `status` | 结果与失败原因 |
+| `fileKey` / `fileName` / `fileSize` / `mime` | 文件信息 |
+
+查看：后台「访问日志」页（`/admin-log`），支持按类型筛选、按 IP/UA/文件名搜索、一键清空。
+
+**实现要点**
+
+- 日志写在 KV 里，一条一个 key：`log:<时间取反>:<随机>`，这样 `list()` 的字典序天然等于「从新到旧」，列表页一次 list 就拿到全部字段（内容存在 metadata 里，受 1KB 限制做了截断）。
+- 成本：每条日志 1 次 KV 写；被拦截的路径访问做了 **20 条/分钟** 节流，防止被人刷爆 KV 写额度。
+- 保留：`LOG_RETENTION_DAYS` 到期自动删除，不需要额外清理任务。
+- 未绑定 KV 时自动降级为「不记录」，不影响上传。
+
+> 建议单独建一个 KV 给 `LOG_KV`。若复用 `img_url`，每条日志会吃掉图片管理的写入额度（免费版 1000 次/天）。
+
+### 自检接口
+
+`GET /api/health` 返回（不含任何密钥内容）：
+
+```json
+{
+  "ok": true,
+  "bindings": { "TG_Bot_Token": true, "TG_Chat_ID": true, "img_url": true },
+  "telegram": { "reachable": true, "ok": true, "status": 200, "latencyMs": 180 },
+  "kv": { "bound": true, "readable": true }
+}
+```
+
+上传报错时先看这里：`telegram.ok=false` 说明 Bot Token 失效或被网络阻断；`bindings.TG_*` 为 false 说明环境变量没配上；`ok=false` 但 `telegram.ok=true` 说明只是缺配置。
+
+### 缩略图通道
+
+后台网格不再直接加载原图，改用 `/thumb/<key>`：上传时从 Telegram `photo` 尺寸数组里取最小那张的 `file_id` 存进 metadata，列表页只加载这张小图；老记录没有该字段时自动 302 回落到 `/file/` 原图，不会裂图。这是后台卡顿的主要原因（一百张 3MB 原图 vs 一百张几十 KB 缩略图）。

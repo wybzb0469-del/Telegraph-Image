@@ -3,4 +3,5 @@ Disallow: /admin
 Disallow: /admin.html
 Disallow: /admin-imgtc.html
 Disallow: /admin-waterfall.html
+Disallow: /admin-log.html
 Disallow: /api/

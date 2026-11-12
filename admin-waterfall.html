@@ -157,7 +157,7 @@
     images.forEach(function(f){
       if(!isImage(f.name)) return;
       html += '<figure class="item" data-name="' + esc(f.name) + '">'
-            +   '<img loading="lazy" src="/file/' + esc(f.name) + '" data-full="/file/' + esc(f.name) + '" alt="">'
+            +   '<img loading="lazy" decoding="async" src="/thumb/' + esc(f.name) + '" data-full="/file/' + esc(f.name) + '" alt="">'
             +   '<figcaption>'
             +     '<span class="name" title="' + esc(f.name) + '">' + esc(f.name) + '</span>'
             +     '<span class="acts">'
