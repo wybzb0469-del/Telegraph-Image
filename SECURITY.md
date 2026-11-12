@@ -70,6 +70,7 @@
 | `FILE_RATE_WINDOW` | `60` | 读图限流窗口（秒） |
 | `LOGIN_RATE_LIMIT` | `10` | 后台密码错误次数上限 |
 | `LOGIN_RATE_WINDOW` | `300` | 后台登录限流窗口（秒） |
+| `BING_RATE_LIMIT` | `30` | 壁纸接口每 IP 每分钟上限 |
 | `RATE_LIMIT_ENABLED` | `true` | 总开关，`false` 关闭全部代码层限流 |
 | `ADMIN_REQUIRE_AUTH` | `false` | `true` 时若未配置 `BASIC_USER/BASIC_PASS`，后台直接拒绝（不再裸奔） |
 
@@ -138,7 +139,8 @@ curl -u 用户名:密码 "https://你的域名/api/manage/scan?action=delete&con
 ## 六、回归测试
 
 ```bash
-npm test          # 19 个用例：魔数识别、伪装脚本、超限、限流、响应头
+npm test                    # 32 个用例：安全 + 后台接口 + 壁纸降级
+npm run test:security       # 只跑安全与后台接口相关
 ```
 
 覆盖的关键断言：
@@ -150,3 +152,35 @@ npm test          # 19 个用例：魔数识别、伪装脚本、超限、限流
 - 上游谎报 `text/html` → 仍输出 `image/png`
 - 请求头里的 `Authorization` / `Cookie` 不会转发给上游
 - 连续上传超阈值 → **429 + Retry-After**
+- 跨站 `Origin` / `Sec-Fetch-Site: cross-site` 打后台 → **403**，同源与 curl 放行
+- 后台非法 key → **400**，记录不存在 → **404**（不再是 500）
+- Bing 接口上游失败 → **200 + 空数组**（不白屏、不 500）
+
+---
+
+## 七、第二轮全量审计（2026-11-13）
+
+第一轮修的是"上传/读取"链路，这一轮把剩余文件全部过了一遍，新发现并修复：
+
+| 严重度 | 位置 | 问题 | 处理 |
+|---|---|---|---|
+| 高 | `manage/block` `manage/white` `manage/delete` | `console.log(env)` 把整个环境变量打到日志，含 `TG_Bot_Token` 与 `BASIC_PASS` | 全部移除，日志只留必要上下文 |
+| 高 | `api/manage/*` | 后台用 Basic 认证，浏览器自动附带凭据；第三方页面用 `<img src=".../delete/KEY">` 即可借管理员身份删记录（CSRF） | 中间件最前面加跨站校验（`Sec-Fetch-Site` / `Origin` / `Referer`），同源与 CLI 放行 |
+| 中 | `manage/delete/[id]` | 直接用 `params.id` 调 KV delete，可删任意 key | 强制 `parseFileKey` 校验 |
+| 中 | `manage/block` `white` `toggleLike` | metadata 为空时抛异常 → 500 | 先判存在性，返回 404 |
+| 中 | `api/bing/wallpaper` | 无缓存/无超时/无限流，每个访客都回源 Bing，可被当免费代理 | 边缘缓存 1h + 8s 超时 + 30 次/分/IP + 失败降级空数组 |
+| 中 | `file/[id]` | 每次出图都要多打一次 `getFile` 子请求 | `getFile` 边缘缓存 1h；图片本体缓存 1 天（带 Range 的跳过） |
+| 低 | `admin.html` | 拉黑/白名单后把 JSON 字符串直接赋给 `metadata`，列表显示错乱 | 改为 `response.json()` 并校验 `error` |
+| 低 | `admin-imgtc.html` | 上传失败只提示"上传失败"，读不到服务端 415 文案；且每次上传都额外 GET 一次图片"校验"，流量翻倍 | 兼容 `{error}` / `[{src}]` 两种响应；去掉多余的预览请求 |
+| 低 | `_headers` | `/*.html` 与 `admin.html` 的 `no-store` 合并成 `public, max-age=0, must-revalidate, no-store` | 移除冗余规则，交给 Pages 默认策略 |
+| 低 | 仓库 | `node_modules/` 被提交进库（**1282 个文件**），`_nuxt/`（1.3MB，8 个文件）是废弃构建产物，均无任何代码引用 | 一并删除，`.gitignore` 补齐；仓库从 1342 个文件降到 56 个 |
+
+同时补充：`robots.txt`（屏蔽后台与 API）、`.gitattributes`（强制 LF，避免 Windows 下补丁校验不一致）、`package.json` 补 `name/private/engines`。
+
+### 仍然建议但未自动执行
+
+1. **删掉 `node_modules` 历史**：本轮删的是当前树；如果想彻底瘦身，可再跑 `git filter-repo --path node_modules --invert-paths`（会重写历史，需强推，自己评估）。
+2. **删掉 `package-lock.json` 里的历史依赖**：本轮未改 lock 文件，`npm ci` 仍可复现。
+3. **给后台加 Cloudflare Access**：比 Basic 认证更可靠（支持邮箱验证码/SSO），并天然免疫 CSRF。
+4. **KV 用量监控**：`scan` 与后台列表都会消耗 KV 读；量大时建议接 Workers Analytics。
+

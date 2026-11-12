@@ -1,14 +1,16 @@
-import { constantTimeEquals } from '../../utils/security.js';
+import { constantTimeEquals, crossSiteReason, jsonResponse } from '../../utils/security.js';
 import { enforceRateLimit, loginRateRules } from '../../utils/rate-limit.js';
 
 /**
  * 后台 API 统一鉴权中间件。
  *
  * 相比旧版的改动：
- *  1. 凭据比较改为定长哈希比较，避免计时侧信道；
- *  2. Basic 认证失败按 IP 限流，挡暴力破解；
- *  3. 异常只回通用信息，不再把堆栈吐给客户端；
- *  4. 可选 ADMIN_REQUIRE_AUTH=true 强制执行鉴权（未配置账号时直接拒绝，而不是裸奔）。
+ *  1. 增加跨站来源校验（CSRF）—— Basic 凭据会被浏览器自动附带，
+ *     第三方页面用 <img src=".../api/manage/delete/KEY"> 就能借管理员身份删记录；
+ *  2. 凭据比较改为 SHA-256 定长比较，避免计时侧信道；
+ *  3. Basic 认证失败按 IP 限流，挡暴力破解；
+ *  4. 异常只回通用信息，不再把堆栈吐给客户端；
+ *  5. 可选 ADMIN_REQUIRE_AUTH=true 强制执行鉴权（未配置账号时直接拒绝，而不是裸奔）。
  */
 
 async function errorHandling(context) {
@@ -74,6 +76,14 @@ function parseBasicAuth(request) {
 
 async function authentication(context) {
   const { env, request } = context;
+
+  // 0) 先挡跨站请求，避免 Basic 凭据被第三方页面"借用"
+  const url = new URL(request.url);
+  const crossSite = crossSiteReason(request, url);
+  if (crossSite) {
+    console.warn('manage: 已拦截跨站请求', crossSite);
+    return jsonResponse({ error: '跨站请求被拒绝' }, 403);
+  }
 
   // 未绑定 KV 时后台功能整体关闭
   if (!env?.img_url) {

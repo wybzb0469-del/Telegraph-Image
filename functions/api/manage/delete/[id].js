@@ -1,17 +1,18 @@
-export async function onRequest(context) {
-    // Contents of context object
-    const {
-      request, // same as existing Worker API
-      env, // same as existing Worker API
-      params, // if filename includes [id] or [[path]]
-      waitUntil, // same as ctx.waitUntil in existing Worker API
-      next, // used for middleware or to fetch assets
-      data, // arbitrary space for passing data between middlewares
-    } = context;
-    console.log(env)
-    console.log(params.id)
-    await env.img_url.delete(params.id);
-    const info = JSON.stringify(params.id);
-    return new Response(info);
+import { jsonResponse, parseFileKey } from '../../../utils/security.js';
 
-  }
+/**
+ * 删除 KV 记录（不等于删除 Telegram 上的原图）。
+ * 旧版直接用 params.id 调 KV delete，等于允许删任意 key；
+ * 这里强制 key 必须是 <fileId>[.<ext>] 形状。
+ */
+export async function onRequest(context) {
+  const { params, env } = context;
+
+  const parsed = parseFileKey(params?.id);
+  if (!parsed) return jsonResponse({ error: '非法的文件标识' }, 400);
+  if (!env?.img_url) return jsonResponse({ error: '未绑定 KV' }, 400);
+
+  await env.img_url.delete(parsed.key);
+
+  return jsonResponse({ success: true, key: parsed.key });
+}

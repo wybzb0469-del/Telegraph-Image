@@ -1,0 +1,12 @@
+# 统一换行符，避免 Windows 上 checkout 出 CRLF 导致补丁/校验不一致
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

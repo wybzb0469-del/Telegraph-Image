@@ -1,8 +1,16 @@
 {
+  "name": "telegraph-image",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Pages 图床：仅接受图片、带限流与后台管理的 Telegraph/Telegram 图片托管",
   "scripts": {
     "ci-test": "concurrently --kill-others --success first \"npm start\" \"wait-on http://localhost:8080 && mocha --exit\"",
     "test": "mocha",
+    "test:security": "mocha test/security.test.js test/manage.test.js",
     "start": "npx wrangler pages dev ./ --kv \"img_url\" --port 8080 --binding BASIC_USER=admin --binding BASIC_PASS=123 --persist-to ./data"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {},
   "devDependencies": {

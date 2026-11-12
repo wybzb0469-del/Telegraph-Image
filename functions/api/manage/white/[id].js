@@ -1,23 +1,23 @@
-export async function onRequest(context) {
-    // Contents of context object
-    const {
-      request, // same as existing Worker API
-      env, // same as existing Worker API
-      params, // if filename includes [id] or [[path]]
-      waitUntil, // same as ctx.waitUntil in existing Worker API
-      next, // used for middleware or to fetch assets
-      data, // arbitrary space for passing data between middlewares
-    } = context;
-    console.log(env)
-    console.log(params.id)
-    //read the metadata
-    const value = await env.img_url.getWithMetadata(params.id);
-    console.log(value)
-    //"metadata":{"TimeStamp":19876541,"ListType":"None","rating_label":"None"}
-    //change the metadata
-    value.metadata.ListType = "White"
-    await env.img_url.put(params.id,"",{metadata: value.metadata});
-    const info = JSON.stringify(value.metadata);
-    return new Response(info);
+import { jsonResponse, parseFileKey } from '../../../utils/security.js';
 
+/**
+ * 加入白名单（无视内容审查、无视白名单模式）。
+ * 顺带修掉旧版的两个问题：key 未校验、metadata 为空时抛 500、以及 console.log(env)。
+ */
+export async function onRequest(context) {
+  const { params, env } = context;
+
+  const parsed = parseFileKey(params?.id);
+  if (!parsed) return jsonResponse({ error: '非法的文件标识' }, 400);
+  if (!env?.img_url) return jsonResponse({ error: '未绑定 KV' }, 400);
+
+  const record = await env.img_url.getWithMetadata(parsed.key);
+  if (!record?.metadata) {
+    return jsonResponse({ error: `记录不存在: ${parsed.key}` }, 404);
   }
+
+  const metadata = { ...record.metadata, ListType: 'White' };
+  await env.img_url.put(parsed.key, '', { metadata });
+
+  return jsonResponse(metadata);
+}

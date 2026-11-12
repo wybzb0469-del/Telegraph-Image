@@ -1,11 +1,22 @@
-# Cloudflare Pages 响应头加固（作用于静态资源；Functions 响应的头在代码里设置）
-# 注意：不要在这里加全局 CSP，首页/后台依赖内联脚本，加了会白屏。
+# Cloudflare Pages 响应头（静态资源；Functions 响应的头在代码里设置）
+# 注意：不要加全局 CSP，首页/后台依赖内联脚本，加了会白屏。
+# 规则顺序：通用在前，特例在后（同名头以最后匹配的规则为准）。
 
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+# HTML 由 Pages 默认策略处理（max-age=0 + revalidate），这里不再重复设置，
+# 否则会与下面的 no-store 合并成 "public, max-age=0, must-revalidate, no-store"。
+
+# 带内容的静态资源可以长缓存（文件名带指纹或很少改动）
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_nuxt/*
+  Cache-Control: public, max-age=31536000, immutable
 
 /admin.html
   Cache-Control: no-store
@@ -19,5 +30,6 @@
   Cache-Control: no-store
   X-Robots-Tag: noindex, nofollow
 
+# 上传内容不参与搜索收录（仍可被外站引用）
 /file/*
   X-Robots-Tag: noindex, nofollow

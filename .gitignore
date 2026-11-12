@@ -1,4 +1,13 @@
-node_modules/.bin/*
-node_modules/.mf/*
-.wrangler/*
-data/*
+# 依赖与本地构建产物不入库（原先 node_modules 被提交进仓库，共 1282 个文件）
+node_modules/
+.wrangler/
+data/
+
+# 本地密钥
+.dev.vars
+.gh-token
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db

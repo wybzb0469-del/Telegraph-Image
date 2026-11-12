@@ -117,6 +117,11 @@ export async function onRequest(context) {
       headers: upstreamHeaders,
       redirect: 'follow',
       signal: timeoutSignal(),
+      // 图片内容不可变：走边缘缓存，重复访问不再回源 Telegram。
+      // 带 Range 的请求（视频拖动/断点续传）跳过，避免缓存碎片。
+      ...(request.headers.get('range')
+        ? {}
+        : { cf: { cacheEverything: true, cacheTtl: 86400 } }),
     });
   } catch (error) {
     console.error('file: upstream fetch failed', error?.message || error);
@@ -211,7 +216,12 @@ function buildResponseHeaders(ext, key, upstream, metadata) {
 async function getFilePath(env, fileId) {
   try {
     const url = `https://api.telegram.org/bot${env.TG_Bot_Token}/getFile?file_id=${encodeURIComponent(fileId)}`;
-    const res = await fetch(url, { method: 'GET', signal: timeoutSignal(10000) });
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: timeoutSignal(10000),
+      // file_path 基本稳定，缓存 1 小时即可省掉每次出图前的 getFile 子请求
+      cf: { cacheEverything: true, cacheTtl: 3600 },
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (data?.ok && data.result?.file_path) return data.result.file_path;

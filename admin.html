@@ -230,9 +230,10 @@
           };
 
           fetch("./api/manage/block/" + key, requestOptions)
-            .then(response => response.text())
+            .then(response => response.json())
             .then(result => {
-              console.log(result);
+              if (result && result.error) throw new Error(result.error);
+              // 旧代码把 JSON 字符串直接赋给 metadata，会污染列表显示
               this.tableData[index].metadata = result;
             })
             .catch(error => { alert("An error occurred while synchronizing data with the server, please check the network connection"); console.log('error', error) });
@@ -272,8 +273,11 @@
             credentials: 'include'
           };
           fetch("./api/manage/white/" + key, requestOptions)
-            .then(response => response.text())
-            .then(result => { console.log(result); this.tableData[index].metadata = result; })
+            .then(response => response.json())
+            .then(result => {
+              if (result && result.error) throw new Error(result.error);
+              this.tableData[index].metadata = result;
+            })
             .catch(error => { alert("An error occurred while synchronizing data with the server, please check the network connection"); console.log('error', error) });
 
         } else {

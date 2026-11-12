@@ -1,22 +1,20 @@
+import { jsonResponse, parseFileKey } from '../../../utils/security.js';
+
+/** 切换收藏状态。保持原有响应形状 { success, liked }，前端做了乐观更新。 */
 export async function onRequest(context) {
-    const { params, env } = context;
+  const { params, env } = context;
 
-    console.log("Request ID:", params.id);
+  const parsed = parseFileKey(params?.id);
+  if (!parsed) return jsonResponse({ error: '非法的文件标识' }, 400);
+  if (!env?.img_url) return jsonResponse({ error: '未绑定 KV' }, 400);
 
-    // 获取元数据
-    const value = await env.img_url.getWithMetadata(params.id);
-    console.log("Current metadata:", value);
+  const record = await env.img_url.getWithMetadata(parsed.key);
+  if (!record?.metadata) {
+    return jsonResponse({ error: `记录不存在: ${parsed.key}` }, 404);
+  }
 
-    // 如果记录不存在
-    if (!value.metadata) return new Response(`Image metadata not found for ID: ${params.id}`, { status: 404 });
+  const metadata = { ...record.metadata, liked: !record.metadata.liked };
+  await env.img_url.put(parsed.key, '', { metadata });
 
-    // 切换 liked 状态并更新
-    value.metadata.liked = !value.metadata.liked;
-    await env.img_url.put(params.id, "", { metadata: value.metadata });
-
-    console.log("Updated metadata:", value.metadata);
-
-    return new Response(JSON.stringify({ success: true, liked: value.metadata.liked }), {
-        headers: { 'Content-Type': 'application/json' },
-    });
+  return jsonResponse({ success: true, liked: metadata.liked });
 }

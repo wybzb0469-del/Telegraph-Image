@@ -208,3 +208,29 @@ export function intEnv(raw, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER }
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(Math.max(Math.floor(n), min), max);
 }
+
+/**
+ * 跨站来源判定，用于后台接口防 CSRF。
+ *
+ * 背景：后台用 Basic 认证，浏览器会把凭据自动附加到同源请求上，
+ * 因此第三方页面只要构造 <img src="https://站点/api/manage/delete/KEY">，
+ * 就能借管理员的凭据执行删除/拉黑。校验做在源头。
+ *
+ * 返回 null 表示同源（或无法判定，如 curl 直连），否则返回原因。
+ */
+export function crossSiteReason(request, url) {
+  const site = request.headers.get('sec-fetch-site');
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+
+  // 现代浏览器：明确标记为跨站
+  if (site === 'cross-site') return 'sec-fetch-site=cross-site';
+  // 带了 Origin 就必须与本服务同源
+  if (origin && origin !== url.origin) return `origin=${origin}`;
+  // 老浏览器兜底：只有 Referer 时按前缀判断
+  if (!site && !origin && referer && !referer.startsWith(`${url.origin}/`)) {
+    return `referer=${referer}`;
+  }
+  return null;
+}
+
